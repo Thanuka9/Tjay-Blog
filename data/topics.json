@@ -1,0 +1,32 @@
+[
+  {
+    "slug": "longevity",
+    "name": "Longevity",
+    "description": "Aging, biological age, and the gap between a younger-looking number and a well-tested intervention.",
+    "order": 1
+  },
+  {
+    "slug": "peptides",
+    "name": "Peptides",
+    "description": "From insulin to the compounds filling up your feed. Same word, wildly different amounts of proof.",
+    "order": 2
+  },
+  {
+    "slug": "regulation",
+    "name": "Regulation",
+    "description": "Why manufacturing rules, batch testing, and FDA status are part of the science, not a footnote.",
+    "order": 3
+  },
+  {
+    "slug": "nutrition",
+    "name": "Nutrition",
+    "description": "Supplements, diet claims, and the studies that do — or do not — support them.",
+    "order": 4
+  },
+  {
+    "slug": "metabolism",
+    "name": "Metabolism",
+    "description": "Weight, hormones, energy, and the drugs actually tested in people.",
+    "order": 5
+  }
+]
