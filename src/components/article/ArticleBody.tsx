@@ -34,11 +34,17 @@ const components: Components = {
       {children}
     </h3>
   ),
-  p: ({ children }) => (
-    <p className="my-5 text-[1.0625rem] leading-[1.8] text-foreground/90">
-      {children}
-    </p>
-  ),
+  p: ({ children, node }) => {
+    const hasImage = node?.children?.some(
+      (child) => child.type === "element" && child.tagName === "img",
+    );
+    if (hasImage) return <>{children}</>;
+    return (
+      <p className="my-5 text-[1.0625rem] leading-[1.8] text-foreground/90">
+        {children}
+      </p>
+    );
+  },
   strong: ({ children }) => (
     <strong className="font-semibold text-foreground">{children}</strong>
   ),

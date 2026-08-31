@@ -37,6 +37,8 @@ yarn-error.log*
 # local uploads
 /public/uploads/*
 !/public/uploads/.gitkeep
+/data/uploads/*
+!/data/uploads/.gitkeep
 
 # vercel
 .vercel

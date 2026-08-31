@@ -7,14 +7,7 @@ export type Topic = {
   order?: number;
 };
 
-export type ChartSpec = {
-  type: "bar" | "line";
-  title: string;
-  description?: string;
-  unit?: string;
-  yMax?: number;
-  data: { name: string; value: number }[];
-};
+export type { ChartSpec, ChartType, ChartRow, ChartPalette } from "@/lib/charts";
 
 export type PostMeta = {
   id: string;

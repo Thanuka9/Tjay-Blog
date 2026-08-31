@@ -1,4 +1,6 @@
 {
   "source": "latest",
-  "postIds": ["p_peptides"]
+  "postIds": [
+    "p_peptides"
+  ]
 }

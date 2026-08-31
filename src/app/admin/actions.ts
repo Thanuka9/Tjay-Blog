@@ -98,6 +98,7 @@ export async function savePostAction(formData: FormData) {
     }
 
     revalidatePath("/", "layout");
+    revalidatePath("/articles");
     revalidatePath("/topics");
     revalidatePath(`/articles/${post.slug}`);
     revalidatePath(`/topics/${post.topic}`);

@@ -3,11 +3,11 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BarChart3, ImagePlus, Save } from "lucide-react";
+import { BarChart3, Globe, ImagePlus, Save } from "lucide-react";
 import { savePostAction } from "@/app/admin/actions";
 import { ArticleBody } from "@/components/article/ArticleBody";
 import { ChartBuilder } from "@/components/admin/ChartBuilder";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { isImageFile } from "@/lib/image-files";
 import { parseBodyImages } from "@/lib/markdown-images";
 import { slugify } from "@/lib/site";
 import type { Topic } from "@/lib/types";
@@ -51,8 +52,8 @@ export function PostEditor({
   slideshowSlot?: number | null;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(post.title);
   const [slug, setSlug] = useState(post.slug);
   const [excerpt, setExcerpt] = useState(post.excerpt);
@@ -70,10 +71,20 @@ export function PostEditor({
   async function uploadFile(file: File) {
     const body = new FormData();
     body.set("file", file);
-    const response = await fetch("/api/upload", { method: "POST", body });
-    const data = (await response.json()) as { url?: string; error?: string };
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body,
+      credentials: "same-origin",
+    });
+    const text = await response.text();
+    let data: { url?: string; error?: string } = {};
+    try {
+      data = JSON.parse(text) as { url?: string; error?: string };
+    } catch {
+      data = {};
+    }
     if (!response.ok || !data.url) {
-      throw new Error(data.error ?? "Upload failed");
+      throw new Error(data.error ?? `Upload failed (${response.status})`);
     }
     return data.url;
   }
@@ -96,8 +107,11 @@ export function PostEditor({
   }
 
   async function insertImages(files: FileList | File[]) {
-    const list = [...files].filter((file) => file.type.startsWith("image/"));
-    if (list.length === 0) return;
+    const list = [...files].filter(isImageFile);
+    if (list.length === 0) {
+      toast.error("Choose a jpg, png, webp, gif, svg, or avif.");
+      return;
+    }
     setUploading(true);
     try {
       let source = content;
@@ -131,23 +145,43 @@ export function PostEditor({
     }
   }
 
+  async function persist(nextStatus: EditorPost["status"]) {
+    const formEl = formRef.current;
+    if (!formEl) return;
+    if (!formEl.reportValidity()) return;
+    setPending(true);
+    const form = new FormData(formEl);
+    form.set("title", title);
+    form.set("slug", slug || slugify(title));
+    form.set("excerpt", excerpt);
+    form.set("content", content);
+    form.set("coverImage", coverImage);
+    form.set("topic", topic);
+    form.set("status", nextStatus);
+    form.set("featured", post.featured ? "true" : "false");
+    const result = await savePostAction(form);
+    setPending(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    setStatus(nextStatus);
+    toast.success(
+      nextStatus === "published"
+        ? "Published — it is live on the site"
+        : "Draft saved",
+    );
+    router.push(`/admin/posts/${result.id}`);
+    router.refresh();
+  }
+
   return (
     <form
+      ref={formRef}
       className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault();
-        setPending(true);
-        const form = new FormData(event.currentTarget);
-        form.set("featured", post.featured ? "true" : "false");
-        const result = await savePostAction(form);
-        setPending(false);
-        if (!result.ok) {
-          toast.error(result.message);
-          return;
-        }
-        toast.success(status === "published" ? "Published" : "Draft saved");
-        router.push(`/admin/posts/${result.id}`);
-        router.refresh();
+        void persist(status);
       }}
     >
       <input type="hidden" name="id" value={post.id} />
@@ -155,6 +189,7 @@ export function PostEditor({
       <input type="hidden" name="topic" value={topic} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="featured" value={post.featured ? "true" : "false"} />
+      <input type="hidden" name="content" value={content} />
 
       <div className="space-y-4">
         <div className="space-y-2">
@@ -185,16 +220,28 @@ export function PostEditor({
                 placeholder="Caption for next image"
                 className="h-8 w-48 text-sm"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={uploading}
-                onClick={() => imageInputRef.current?.click()}
+              <label
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "cursor-pointer",
+                  uploading && "pointer-events-none opacity-50",
+                )}
               >
                 <ImagePlus />
                 {uploading ? "Uploading…" : "Add images"}
-              </Button>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,.jpg,.jpeg,.png,.webp,.gif,.svg,.avif"
+                  multiple
+                  disabled={uploading}
+                  className="sr-only"
+                  onChange={(event) => {
+                    const files = event.target.files;
+                    event.target.value = "";
+                    if (files) void insertImages(files);
+                  }}
+                />
+              </label>
               <Button type="button" variant="outline" size="sm" onClick={() => setChartOpen(true)}>
                 <BarChart3 />
                 Chart
@@ -202,17 +249,22 @@ export function PostEditor({
             </div>
           </div>
           <p className="mb-3 text-xs leading-5 text-muted-foreground">
-            Put the cursor where the photo should appear, then click Add images
-            or drop files onto the editor. You can select several at once. The
-            caption field becomes the line under the photo; leave it blank to
-            use the file name.
+            Put the cursor where the photo should appear, then click Add images,
+            paste, or drop files onto the editor. You can select several at
+            once. The caption field becomes the line under the photo; leave it
+            blank to use the file name.
           </p>
-          <TabsContent value="write">
+          <TabsContent value="write" forceMount className="data-inactive:hidden data-[state=inactive]:hidden">
             <Textarea
               ref={contentRef}
-              name="content"
               value={content}
               onChange={(event) => setContent(event.target.value)}
+              onPaste={(event) => {
+                const files = [...event.clipboardData.files].filter(isImageFile);
+                if (files.length === 0) return;
+                event.preventDefault();
+                void insertImages(files);
+              }}
               onDragOver={(event) => {
                 event.preventDefault();
                 setDragging(true);
@@ -228,7 +280,6 @@ export function PostEditor({
                 dragging && "ring-2 ring-brand/40",
               )}
               placeholder="Write in Markdown. Add images from the toolbar or drop them here."
-              required
             />
           </TabsContent>
           <TabsContent value="preview">
@@ -264,33 +315,34 @@ export function PostEditor({
             </div>
           </div>
         ) : null}
-        <input
-          ref={imageInputRef}
-          id="inline-image"
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            const files = event.target.files;
-            event.target.value = "";
-            if (files) void insertImages(files);
-          }}
-        />
       </div>
 
       <aside className="space-y-5 lg:sticky lg:top-6">
         <div className="space-y-2">
-          <Label>Status</Label>
-          <Select value={status} onValueChange={(value) => setStatus(value as EditorPost["status"])}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label>On the site</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={status === "draft" ? "default" : "outline"}
+              className="w-full"
+              onClick={() => setStatus("draft")}
+            >
+              Draft
+            </Button>
+            <Button
+              type="button"
+              variant={status === "published" ? "default" : "outline"}
+              className="w-full"
+              onClick={() => setStatus("published")}
+            >
+              Published
+            </Button>
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {status === "published"
+              ? "This piece will appear on Home, Articles, and its topic page."
+              : "Drafts stay in the editor desk until you publish."}
+          </p>
         </div>
         <div className="rounded-lg border border-border px-3 py-3">
           <p className="text-sm font-medium">Home slideshow</p>
@@ -312,7 +364,7 @@ export function PostEditor({
         <div className="space-y-2">
           <Label>Topic</Label>
           <Select value={topic} onValueChange={setTopic}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -358,6 +410,10 @@ export function PostEditor({
               const file = event.target.files?.[0];
               event.target.value = "";
               if (!file) return;
+              if (!isImageFile(file)) {
+                toast.error("Choose a jpg, png, webp, gif, svg, or avif.");
+                return;
+              }
               try {
                 const url = await uploadFile(file);
                 setCoverImage(url);
@@ -385,11 +441,30 @@ export function PostEditor({
             className="min-h-20"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={pending}>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={pending}
+          onClick={() => void persist("draft")}
+        >
           <Save />
-          {pending ? "Saving…" : "Save post"}
+          {pending && status === "draft" ? "Saving…" : "Save draft"}
         </Button>
-        {slug ? (
+        <Button
+          type="button"
+          className="w-full"
+          disabled={pending}
+          onClick={() => void persist("published")}
+        >
+          <Globe />
+          {pending && status === "published"
+            ? "Publishing…"
+            : status === "published"
+              ? "Save and keep live"
+              : "Publish to site"}
+        </Button>
+        {slug && status === "published" ? (
           <Button asChild variant="outline" className="w-full">
             <a href={`/articles/${slug}`} target="_blank" rel="noreferrer">
               View on site
