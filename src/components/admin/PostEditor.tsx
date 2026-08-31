@@ -148,13 +148,18 @@ export function PostEditor({
   async function persist(nextStatus: EditorPost["status"]) {
     const formEl = formRef.current;
     if (!formEl) return;
-    if (!formEl.reportValidity()) return;
+    if (!formEl.checkValidity()) {
+      formEl.reportValidity();
+      toast.error("Fill in the headline and excerpt before publishing.");
+      return;
+    }
+    const liveContent = contentRef.current?.value || content;
     setPending(true);
     const form = new FormData(formEl);
-    form.set("title", title);
-    form.set("slug", slug || slugify(title));
-    form.set("excerpt", excerpt);
-    form.set("content", content);
+    form.set("title", (title || String(form.get("title") ?? "")).trim());
+    form.set("slug", slug || slugify(title || String(form.get("title") ?? "")));
+    form.set("excerpt", (excerpt || String(form.get("excerpt") ?? "")).trim());
+    form.set("content", liveContent);
     form.set("coverImage", coverImage);
     form.set("topic", topic);
     form.set("status", nextStatus);
@@ -176,6 +181,7 @@ export function PostEditor({
   }
 
   return (
+    <>
     <form
       ref={formRef}
       className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
@@ -223,7 +229,7 @@ export function PostEditor({
               <label
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),
-                  "cursor-pointer",
+                  "relative cursor-pointer",
                   uploading && "pointer-events-none opacity-50",
                 )}
               >
@@ -234,11 +240,11 @@ export function PostEditor({
                   accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,.jpg,.jpeg,.png,.webp,.gif,.svg,.avif"
                   multiple
                   disabled={uploading}
-                  className="sr-only"
+                  className="absolute inset-0 cursor-pointer opacity-0"
                   onChange={(event) => {
-                    const files = event.target.files;
+                    const files = [...(event.target.files ?? [])];
                     event.target.value = "";
-                    if (files) void insertImages(files);
+                    if (files.length) void insertImages(files);
                   }}
                 />
               </label>
@@ -472,12 +478,12 @@ export function PostEditor({
           </Button>
         ) : null}
       </aside>
-
+    </form>
       <ChartBuilder
         open={chartOpen}
         onOpenChange={setChartOpen}
         onInsert={insertAtCursor}
       />
-    </form>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChartBlock } from "@/components/article/ChartBlock";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +57,27 @@ export function ChartBuilder({
   const [height, setHeight] = useState("288");
   const [series2, setSeries2] = useState("Series 2");
   const [series3, setSeries3] = useState("Series 3");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle("Untitled chart");
+    setDescription("");
+    setUnit("");
+    setType("bar");
+    setRows("Collagen peptides, 7\nBPC-157, 2\nGHK-Cu injectable, 1.5");
+    setColors([...DEFAULT_CHART_COLORS]);
+    setShowGrid(true);
+    setShowLegend(false);
+    setShowValues(false);
+    setShowDots(true);
+    setCurved(true);
+    setStacked(false);
+    setYMin("");
+    setYMax("");
+    setHeight("288");
+    setSeries2("Series 2");
+    setSeries3("Series 3");
+  }, [open]);
 
   const spec = useMemo(() => {
     const data = parseChartRows(rows);

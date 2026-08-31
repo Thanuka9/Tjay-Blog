@@ -1,5 +1,21 @@
 [
   {
+    "id": "dc4fabaa-d1a8-49a2-b80f-7e656c9f2953",
+    "slug": "assay-editor-verify-1788192193441",
+    "title": "What peptide charts actually show in clinic",
+    "excerpt": "A verification piece covering body images, publish vs draft, and two live charts with custom colors.",
+    "coverImage": "/uploads/j2FDmjPC5iUQ.jpg",
+    "topic": "peptides",
+    "tags": [],
+    "status": "published",
+    "featured": false,
+    "author": "The Assay",
+    "publishedAt": "2026-08-31T16:03:52.593Z",
+    "readingTime": 1,
+    "createdAt": "2026-08-31T16:03:52.593Z",
+    "updatedAt": "2026-08-31T16:03:52.593Z"
+  },
+  {
     "id": "01e1bb9a-0c8c-44e5-85a5-d8f09e327471",
     "slug": "test",
     "title": "Test",

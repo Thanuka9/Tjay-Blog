@@ -5,5 +5,10 @@ import { Toaster } from "@/components/ui/sonner";
 
 export function AppToaster() {
   const pathname = usePathname();
-  return <Toaster theme={pathname.startsWith("/admin") ? "dark" : "light"} />;
+  return (
+    <Toaster
+      theme={pathname.startsWith("/admin") ? "dark" : "light"}
+      position={pathname.startsWith("/admin") ? "top-center" : "bottom-right"}
+    />
+  );
 }
