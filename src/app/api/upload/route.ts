@@ -31,6 +31,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File is over 8MB." }, { status: 400 });
   }
 
+  const publicBlobToken = process.env.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim();
+  if (!publicBlobToken) {
+    return NextResponse.json(
+      { error: "Public Blob storage is not configured." },
+      { status: 500 },
+    );
+  }
+
   const extension = extensionOf(file.name);
   const safeExt = IMAGE_EXT_MIME[extension] ? extension : "jpg";
   const fileName = `${nanoid(12)}.${safeExt}`;
@@ -38,6 +46,7 @@ export async function POST(request: Request) {
   const blob = await put(`tjay/uploads/${folder}/${fileName}`, file, {
     access: "public",
     contentType: type,
+    token: publicBlobToken,
   });
 
   return NextResponse.json({ url: blob.url });
