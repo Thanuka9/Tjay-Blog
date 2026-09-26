@@ -23,6 +23,7 @@ export default async function EditPostPage({
         <p className="text-sm text-muted-foreground">{post.title}</p>
       </div>
       <PostEditor
+        key={post.id}
         topics={topics}
         slideshowSlot={slideshowIndex >= 0 ? slideshowIndex + 1 : null}
         post={{

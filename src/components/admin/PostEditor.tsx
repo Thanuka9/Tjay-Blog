@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BarChart3, Globe, ImagePlus, Save } from "lucide-react";
+import { BarChart3, Globe, ImagePlus, Save, X } from "lucide-react";
 import { savePostAction } from "@/app/admin/actions";
 import { ArticleBody } from "@/components/article/ArticleBody";
 import { ChartBuilder } from "@/components/admin/ChartBuilder";
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { isImageFile } from "@/lib/image-files";
 import { parseBodyImages } from "@/lib/markdown-images";
@@ -59,14 +60,16 @@ export function PostEditor({
   const [excerpt, setExcerpt] = useState(post.excerpt);
   const [content, setContent] = useState(post.content);
   const [coverImage, setCoverImage] = useState(post.coverImage ?? "");
+  const [featured, setFeatured] = useState(post.featured);
   const [topic, setTopic] = useState(post.topic);
   const [status, setStatus] = useState(post.status);
   const [caption, setCaption] = useState("");
   const [chartOpen, setChartOpen] = useState(false);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"draft" | "published" | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const bodyImages = parseBodyImages(content);
+  const charts = parseCharts(content);
 
   async function uploadFile(file: File) {
     const body = new FormData();
@@ -154,7 +157,7 @@ export function PostEditor({
       return;
     }
     const liveContent = contentRef.current?.value || content;
-    setPending(true);
+    setPending(nextStatus);
     const form = new FormData(formEl);
     form.set("title", (title || String(form.get("title") ?? "")).trim());
     form.set("slug", slug || slugify(title || String(form.get("title") ?? "")));
@@ -163,9 +166,9 @@ export function PostEditor({
     form.set("coverImage", coverImage);
     form.set("topic", topic);
     form.set("status", nextStatus);
-    form.set("featured", post.featured ? "true" : "false");
+    form.set("featured", featured ? "true" : "false");
     const result = await savePostAction(form);
-    setPending(false);
+    setPending(null);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -194,7 +197,7 @@ export function PostEditor({
       <input type="hidden" name="coverImage" value={coverImage} />
       <input type="hidden" name="topic" value={topic} />
       <input type="hidden" name="status" value={status} />
-      <input type="hidden" name="featured" value={post.featured ? "true" : "false"} />
+      <input type="hidden" name="featured" value={featured ? "true" : "false"} />
       <input type="hidden" name="content" value={content} />
 
       <div className="space-y-4">
@@ -316,9 +319,50 @@ export function PostEditor({
                       {image.alt}
                     </figcaption>
                   ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-full rounded-none text-destructive"
+                    onClick={() => {
+                      setContent((value) => removeNthMatch(value, imagePattern(), index));
+                      toast.success("Image removed. Save the post to keep this.");
+                    }}
+                  >
+                    Remove
+                  </Button>
                 </figure>
               ))}
             </div>
+          </div>
+        ) : null}
+        {charts.length > 0 ? (
+          <div>
+            <p className="mb-2 text-sm font-medium">
+              Charts in this article ({charts.length})
+            </p>
+            <ul className="space-y-2">
+              {charts.map((chart, index) => (
+                <li
+                  key={`${chart}-${index}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                >
+                  <span className="min-w-0 truncate text-sm">{chart}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => {
+                      setContent((value) => removeNthMatch(value, chartPattern(), index));
+                      toast.success("Chart removed. Save the post to keep this.");
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
       </div>
@@ -349,6 +393,15 @@ export function PostEditor({
               ? "This piece will appear on Home, Articles, and its topic page."
               : "Drafts stay in the editor desk until you publish."}
           </p>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-3">
+          <div>
+            <p className="text-sm font-medium">Featured</p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Leads the articles page. Only one piece stays featured.
+            </p>
+          </div>
+          <Switch checked={featured} onCheckedChange={setFeatured} />
         </div>
         <div className="rounded-lg border border-border px-3 py-3">
           <p className="text-sm font-medium">Home slideshow</p>
@@ -407,6 +460,19 @@ export function PostEditor({
             <div className="overflow-hidden rounded-lg border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={coverImage} alt="" className="h-32 w-full object-cover" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full text-destructive"
+                onClick={() => {
+                  setCoverImage("");
+                  toast.success("Cover removed. Save the post to keep this.");
+                }}
+              >
+                <X />
+                Remove cover
+              </Button>
             </div>
           ) : null}
           <Input
@@ -451,20 +517,20 @@ export function PostEditor({
           type="button"
           variant="outline"
           className="w-full"
-          disabled={pending}
+          disabled={pending !== null}
           onClick={() => void persist("draft")}
         >
           <Save />
-          {pending && status === "draft" ? "Saving…" : "Save draft"}
+          {pending === "draft" ? "Saving…" : "Save draft"}
         </Button>
         <Button
           type="button"
           className="w-full"
-          disabled={pending}
+          disabled={pending !== null}
           onClick={() => void persist("published")}
         >
           <Globe />
-          {pending && status === "published"
+          {pending === "published"
             ? "Publishing…"
             : status === "published"
               ? "Save and keep live"
@@ -486,4 +552,29 @@ export function PostEditor({
       />
     </>
   );
+}
+
+const imagePattern = () => /!\[[^\]]*\]\([^)]+\)/g;
+const chartPattern = () => /:::chart\s*\n([\s\S]*?)\n:::/g;
+
+function parseCharts(markdown: string) {
+  return [...markdown.matchAll(chartPattern())].map((match) => {
+    try {
+      const spec = JSON.parse(match[1] ?? "") as { title?: string };
+      return spec.title?.trim() || "Chart";
+    } catch {
+      return "Chart";
+    }
+  });
+}
+
+function removeNthMatch(source: string, pattern: RegExp, index: number) {
+  let seen = 0;
+  return source
+    .replace(pattern, (match) => {
+      const current = seen;
+      seen += 1;
+      return current === index ? "" : match;
+    })
+    .replace(/\n{3,}/g, "\n\n");
 }

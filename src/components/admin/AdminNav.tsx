@@ -28,7 +28,29 @@ export function AdminNav() {
   }
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border md:flex md:flex-col">
+    <>
+      <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2 md:hidden">
+        {links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "shrink-0 rounded-lg px-3 py-2 text-sm",
+              isActive(link.href)
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground",
+            )}
+          >
+            {link.label}
+          </Link>
+        ))}
+        <form action={logoutAction}>
+          <Button type="submit" variant="ghost" size="sm">
+            Sign out
+          </Button>
+        </form>
+      </nav>
+      <aside className="hidden w-60 shrink-0 border-r border-border md:flex md:flex-col">
       <div className="px-5 py-6">
         <Link href="/admin" className="font-serif text-xl">
           The Assay
@@ -56,7 +78,7 @@ export function AdminNav() {
       </nav>
       <div className="space-y-2 p-3">
         <form action={logoutAction}>
-          <Button variant="ghost" size="sm" className="w-full justify-start">
+          <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
             <LogOut />
             Sign out
           </Button>
@@ -68,6 +90,7 @@ export function AdminNav() {
           View site
         </Link>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

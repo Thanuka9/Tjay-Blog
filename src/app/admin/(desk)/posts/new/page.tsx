@@ -4,6 +4,7 @@ import { listTopics } from "@/lib/store";
 export default async function NewPostPage() {
   const topics = await listTopics();
   const defaultTopic = topics[0]?.slug ?? "longevity";
+  const id = crypto.randomUUID();
 
   return (
     <div className="space-y-6">
@@ -15,9 +16,10 @@ export default async function NewPostPage() {
         </p>
       </div>
       <PostEditor
+        key={id}
         topics={topics}
         post={{
-          id: crypto.randomUUID(),
+          id,
           title: "",
           slug: "",
           excerpt: "",

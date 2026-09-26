@@ -10,6 +10,8 @@ export const metadata: Metadata = {
 
 export default async function ArticlesPage() {
   const posts = await listPublishedPosts();
+  const featured = posts.find((post) => post.featured);
+  const rest = featured ? posts.filter((post) => post.id !== featured.id) : posts;
 
   return (
     <Container className="py-12 sm:py-16">
@@ -28,11 +30,20 @@ export default async function ArticlesPage() {
       {posts.length === 0 ? (
         <p className="mt-12 text-muted-foreground">No published pieces yet.</p>
       ) : (
-        <div className="mt-12 grid gap-10 md:grid-cols-2 xl:grid-cols-3">
-          {posts.map((post) => (
-            <ArticleCard key={post.id} post={post} />
-          ))}
-        </div>
+        <>
+          {featured ? (
+            <div className="mt-12 border-b border-border pb-12">
+              <ArticleCard post={featured} featured />
+            </div>
+          ) : null}
+          {rest.length > 0 ? (
+            <div className="mt-12 grid gap-10 md:grid-cols-2 xl:grid-cols-3">
+              {rest.map((post) => (
+                <ArticleCard key={post.id} post={post} />
+              ))}
+            </div>
+          ) : null}
+        </>
       )}
     </Container>
   );

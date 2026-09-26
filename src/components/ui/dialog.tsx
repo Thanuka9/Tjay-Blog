@@ -73,6 +73,7 @@ function DialogContent({
               variant="ghost"
               className="absolute top-2 right-2"
               size="icon-sm"
+              type="button"
             >
               <XIcon
               />
@@ -115,7 +116,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline" type="button">Close</Button>
         </DialogPrimitive.Close>
       )}
     </div>
