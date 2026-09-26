@@ -19,6 +19,22 @@ const HOME_FILE = "tjay/state/home.json";
 const TOPICS_FILE = "tjay/state/topics.json";
 const OUTBOX_FILE = "tjay/state/outbox.json";
 
+function privateBlobToken() {
+  const token = process.env.BLOB_PRIVATE_READ_WRITE_TOKEN?.trim();
+  if (!token) {
+    throw new Error("BLOB_PRIVATE_READ_WRITE_TOKEN is not configured.");
+  }
+  return token;
+}
+
+function publicBlobToken() {
+  const token = process.env.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim();
+  if (!token) {
+    throw new Error("BLOB_PUBLIC_READ_WRITE_TOKEN is not configured.");
+  }
+  return token;
+}
+
 function contentPath(id: string) {
   return `tjay/content/${id}.md`;
 }
@@ -58,7 +74,9 @@ async function releaseBlobImages(
   await Promise.all(
     removed
       .filter((pathname) => !stillUsed.has(pathname))
-      .map((pathname) => del(pathname).catch(() => undefined)),
+      .map((pathname) =>
+        del(pathname, { token: publicBlobToken() }).catch(() => undefined),
+      ),
   );
 }
 
@@ -66,6 +84,7 @@ const fetchPrivateText = cache(async (pathname: string) => {
   const result = await get(pathname, {
     access: "private",
     useCache: false,
+    token: privateBlobToken(),
   });
   if (!result || result.statusCode !== 200) return null;
   return new Response(result.stream).text();
@@ -88,6 +107,7 @@ async function writeJson(pathname: string, value: unknown) {
     access: "private",
     allowOverwrite: true,
     contentType: "application/json",
+    token: privateBlobToken(),
   });
 }
 
@@ -204,6 +224,7 @@ export async function savePost(
     access: "private",
     allowOverwrite: true,
     contentType: "text/markdown; charset=utf-8",
+    token: privateBlobToken(),
   });
   await releaseBlobImages(
     blobPathsIn(`${existing?.coverImage ?? ""}\n${previousContent}`),
@@ -220,7 +241,7 @@ export async function deletePost(id: string) {
   const remaining = posts.filter((post) => post.id !== id);
   await writeJson(POSTS_FILE, remaining);
   try {
-    await del(contentPath(id));
+    await del(contentPath(id), { token: privateBlobToken() });
   } catch {
     // Content file may not exist for a brand-new draft.
   }
