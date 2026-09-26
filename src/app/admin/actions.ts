@@ -117,13 +117,27 @@ export async function savePostAction(formData: FormData) {
 export async function deletePostAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await deletePost(id);
-  revalidatePath("/", "layout");
-  revalidatePath("/topics");
-  revalidatePath("/admin");
-  revalidatePath("/admin/posts");
-  redirect("/admin/posts");
+  if (!id) return { ok: false as const, message: "Missing post." };
+  try {
+    const existing = await getPost(id);
+    await deletePost(id);
+    revalidatePath("/", "layout");
+    revalidatePath("/articles");
+    revalidatePath("/topics");
+    revalidatePath("/admin");
+    revalidatePath("/admin/posts");
+    revalidatePath("/admin/home");
+    if (existing) {
+      revalidatePath(`/articles/${existing.slug}`);
+      revalidatePath(`/topics/${existing.topic}`);
+    }
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: error instanceof Error ? error.message : "Could not delete post.",
+    };
+  }
 }
 
 export async function saveHomeAction(formData: FormData) {

@@ -1,16 +1,5 @@
 import Link from "next/link";
-import { deletePostAction } from "@/app/admin/actions";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { DeletePostButton } from "@/components/admin/DeletePostButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,28 +75,7 @@ export default async function PostsPage() {
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/admin/posts/${post.id}`}>Edit</Link>
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            Delete
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete this piece?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              “{post.title}” will be removed from the site. This cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <form action={deletePostAction}>
-                              <input type="hidden" name="id" value={post.id} />
-                              <AlertDialogAction type="submit">Delete</AlertDialogAction>
-                            </form>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <DeletePostButton id={post.id} title={post.title} />
                     </div>
                   </TableCell>
                 </TableRow>

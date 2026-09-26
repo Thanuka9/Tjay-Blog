@@ -164,6 +164,13 @@ export async function deletePost(id: string) {
   } catch {
     // Content file may not exist for a brand-new draft.
   }
+  const home = await getHomeSettings();
+  if (home.postIds.includes(id)) {
+    await writeJson(HOME_FILE, {
+      ...home,
+      postIds: home.postIds.filter((postId) => postId !== id),
+    });
+  }
 }
 
 export async function listSubscribers(): Promise<Subscriber[]> {
