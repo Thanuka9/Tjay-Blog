@@ -31,4 +31,4 @@ Posts are Markdown. In the editor toolbar you can upload images and insert bar o
 :::
 ```
 
-Content is stored in `data/posts.json` and `data/content/`. Uploaded images go to `public/uploads/`.
+Live posts, topics, subscribers, and article files are stored in Vercel Blob, not in `data/`. The `data/` folder is only the source for a one-time copy. After `BLOB_READ_WRITE_TOKEN` is set, run `npm run migrate:blob` on this machine, where the original images still exist.

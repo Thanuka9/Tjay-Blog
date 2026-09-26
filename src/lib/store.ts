@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { del, get, put } from "@vercel/blob";
 import { connection } from "next/server";
 import type {
@@ -22,28 +23,64 @@ function contentPath(id: string) {
   return `tjay/content/${id}.md`;
 }
 
+function blobPathsIn(text: string) {
+  const paths = new Set<string>();
+  const matches =
+    text.match(
+      /https:\/\/[^\s)"']+?\.public\.blob\.vercel-storage\.com\/[^\s)"']+/g,
+    ) ?? [];
+  for (const url of matches) {
+    try {
+      const pathname = decodeURIComponent(new URL(url).pathname.replace(/^\//, ""));
+      if (pathname.startsWith("tjay/uploads/")) paths.add(pathname);
+    } catch {
+      // Ignore a malformed image URL in the article body.
+    }
+  }
+  return paths;
+}
+
+async function releaseBlobImages(
+  before: Set<string>,
+  after: Set<string>,
+  otherPosts: PostMeta[],
+) {
+  const removed = [...before].filter((pathname) => !after.has(pathname));
+  if (removed.length === 0) return;
+  const stillUsed = new Set<string>();
+  await Promise.all(
+    otherPosts.map(async (post) => {
+      for (const pathname of blobPathsIn(post.coverImage ?? "")) stillUsed.add(pathname);
+      const content = await readText(contentPath(post.id));
+      for (const pathname of blobPathsIn(content)) stillUsed.add(pathname);
+    }),
+  );
+  await Promise.all(
+    removed
+      .filter((pathname) => !stillUsed.has(pathname))
+      .map((pathname) => del(pathname).catch(() => undefined)),
+  );
+}
+
+const fetchPrivateText = cache(async (pathname: string) => {
+  const result = await get(pathname, {
+    access: "private",
+    useCache: false,
+  });
+  if (!result || result.statusCode !== 200) return null;
+  return new Response(result.stream).text();
+});
+
 async function readText(pathname: string, fallback = "") {
   await connection();
-  try {
-    const result = await get(pathname, {
-      access: "private",
-      useCache: false,
-    });
-    if (!result || result.statusCode !== 200) return fallback;
-    return await new Response(result.stream).text();
-  } catch {
-    return fallback;
-  }
+  const text = await fetchPrivateText(pathname);
+  return text ?? fallback;
 }
 
 async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   const text = await readText(pathname, "");
   if (!text) return fallback;
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return fallback;
-  }
+  return JSON.parse(text) as T;
 }
 
 async function writeJson(pathname: string, value: unknown) {
@@ -63,12 +100,16 @@ export async function listPostMeta(): Promise<PostMeta[]> {
   });
 }
 
+async function withContent(meta: PostMeta): Promise<Post> {
+  const content = await readText(contentPath(meta.id));
+  return { ...meta, content };
+}
+
 export async function getPost(id: string): Promise<Post | null> {
   const posts = await listPostMeta();
   const meta = posts.find((post) => post.id === id);
   if (!meta) return null;
-  const content = await readText(contentPath(id));
-  return { ...meta, content };
+  return withContent(meta);
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
@@ -82,8 +123,7 @@ export async function listPublishedPosts(): Promise<Post[]> {
   const metas = (await listPostMeta()).filter(
     (post) => post.status === "published" && post.publishedAt,
   );
-  const posts = await Promise.all(metas.map((meta) => getPost(meta.id)));
-  return posts.filter((post): post is Post => post !== null);
+  return Promise.all(metas.map((meta) => withContent(meta)));
 }
 
 export async function listPostsByTopic(topic: string): Promise<Post[]> {
@@ -158,21 +198,27 @@ export async function savePost(
     }
   }
 
+  const previousContent = existing ? await readText(contentPath(existing.id)) : "";
   await writeJson(POSTS_FILE, next);
   await put(contentPath(meta.id), input.content, {
     access: "private",
     allowOverwrite: true,
     contentType: "text/markdown; charset=utf-8",
   });
+  await releaseBlobImages(
+    blobPathsIn(`${existing?.coverImage ?? ""}\n${previousContent}`),
+    blobPathsIn(`${meta.coverImage ?? ""}\n${input.content}`),
+    next.filter((post) => post.id !== meta.id),
+  );
   return { ...meta, content: input.content };
 }
 
 export async function deletePost(id: string) {
   const posts = await listPostMeta();
-  await writeJson(
-    POSTS_FILE,
-    posts.filter((post) => post.id !== id),
-  );
+  const existing = posts.find((post) => post.id === id);
+  const previousContent = existing ? await readText(contentPath(id)) : "";
+  const remaining = posts.filter((post) => post.id !== id);
+  await writeJson(POSTS_FILE, remaining);
   try {
     await del(contentPath(id));
   } catch {
@@ -184,6 +230,13 @@ export async function deletePost(id: string) {
       ...home,
       postIds: home.postIds.filter((postId) => postId !== id),
     });
+  }
+  if (existing) {
+    await releaseBlobImages(
+      blobPathsIn(`${existing.coverImage ?? ""}\n${previousContent}`),
+      new Set(),
+      remaining,
+    );
   }
 }
 
