@@ -82,9 +82,11 @@ async function main() {
   await loadEnvFile(path.join(ROOT, ".env.local"));
   await loadEnvFile(path.join(ROOT, ".env"));
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const privateToken = process.env.BLOB_PRIVATE_READ_WRITE_TOKEN?.trim();
+  const publicToken = process.env.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim();
+  if (!privateToken || !publicToken) {
     console.error(
-      "BLOB_READ_WRITE_TOKEN is not set. Rotate the old token in the Vercel Blob store, then put the new token only in Vercel environment variables or the shell for this command. Do not commit it.",
+      "Set both BLOB_PRIVATE_READ_WRITE_TOKEN and BLOB_PUBLIC_READ_WRITE_TOKEN before running the migration. Keep the real values only in Vercel environment variables, .env.local, or your shell; never commit them.",
     );
     process.exit(1);
   }
@@ -137,6 +139,7 @@ async function main() {
       access: "public",
       allowOverwrite: true,
       contentType: IMAGE_TYPES[ext] ?? "application/octet-stream",
+      token: publicToken,
     });
     urls.set(name, blob.url);
     console.log(`uploaded tjay/uploads/${folder}/${name}`);
@@ -147,6 +150,7 @@ async function main() {
     access: "private",
     allowOverwrite: true,
     contentType: "application/json",
+    token: privateToken,
   });
   console.log("uploaded tjay/state/posts.json");
 
@@ -162,6 +166,7 @@ async function main() {
       access: "private",
       allowOverwrite: true,
       contentType: "application/json",
+      token: privateToken,
     });
     console.log(`uploaded tjay/state/${name}`);
   }
@@ -173,6 +178,7 @@ async function main() {
       access: "private",
       allowOverwrite: true,
       contentType: "text/markdown; charset=utf-8",
+      token: privateToken,
     });
     console.log(`uploaded tjay/content/${id}.md`);
   }
