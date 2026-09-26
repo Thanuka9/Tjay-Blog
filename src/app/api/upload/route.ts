@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { cookies } from "next/headers";
@@ -35,10 +34,11 @@ export async function POST(request: Request) {
   const extension = extensionOf(file.name);
   const safeExt = IMAGE_EXT_MIME[extension] ? extension : "jpg";
   const fileName = `${nanoid(12)}.${safeExt}`;
-  const uploadDir = path.join(process.cwd(), "data", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, fileName), bytes);
+  const folder = form.get("folder") === "covers" ? "covers" : "articles";
+  const blob = await put(`tjay/uploads/${folder}/${fileName}`, file, {
+    access: "public",
+    contentType: type,
+  });
 
-  return NextResponse.json({ url: `/uploads/${fileName}` });
+  return NextResponse.json({ url: blob.url });
 }

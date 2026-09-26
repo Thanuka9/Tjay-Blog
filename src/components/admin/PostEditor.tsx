@@ -71,9 +71,10 @@ export function PostEditor({
   const bodyImages = parseBodyImages(content);
   const charts = parseCharts(content);
 
-  async function uploadFile(file: File) {
+  async function uploadFile(file: File, folder: "covers" | "articles" = "articles") {
     const body = new FormData();
     body.set("file", file);
+    body.set("folder", folder);
     const response = await fetch("/api/upload", {
       method: "POST",
       body,
@@ -487,7 +488,7 @@ export function PostEditor({
                 return;
               }
               try {
-                const url = await uploadFile(file);
+                const url = await uploadFile(file, "covers");
                 setCoverImage(url);
                 toast.success("Cover updated");
               } catch (error) {

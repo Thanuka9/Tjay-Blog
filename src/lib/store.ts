@@ -1,7 +1,7 @@
 import "server-only";
 
-import { promises as fs } from "fs";
-import path from "path";
+import { del, get, put } from "@vercel/blob";
+import { connection } from "next/server";
 import type {
   HomeSettings,
   OutboundMail,
@@ -12,31 +12,46 @@ import type {
 } from "@/lib/types";
 import { readingTimeFrom, slugify } from "@/lib/site";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const POSTS_FILE = path.join(DATA_DIR, "posts.json");
-const CONTENT_DIR = path.join(DATA_DIR, "content");
-const SUBS_FILE = path.join(DATA_DIR, "subscribers.json");
-const HOME_FILE = path.join(DATA_DIR, "home.json");
-const TOPICS_FILE = path.join(DATA_DIR, "topics.json");
-const OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
+const POSTS_FILE = "tjay/state/posts.json";
+const SUBS_FILE = "tjay/state/subscribers.json";
+const HOME_FILE = "tjay/state/home.json";
+const TOPICS_FILE = "tjay/state/topics.json";
+const OUTBOX_FILE = "tjay/state/outbox.json";
 
-async function readJson<T>(file: string, fallback: T): Promise<T> {
+function contentPath(id: string) {
+  return `tjay/content/${id}.md`;
+}
+
+async function readText(pathname: string, fallback = "") {
+  await connection();
   try {
-    const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw) as T;
+    const result = await get(pathname, {
+      access: "private",
+      useCache: false,
+    });
+    if (!result || result.statusCode !== 200) return fallback;
+    return await new Response(result.stream).text();
   } catch {
     return fallback;
   }
 }
 
-async function writeJson(file: string, value: unknown) {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+async function readJson<T>(pathname: string, fallback: T): Promise<T> {
+  const text = await readText(pathname, "");
+  if (!text) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
+  }
 }
 
-async function contentPath(id: string) {
-  await fs.mkdir(CONTENT_DIR, { recursive: true });
-  return path.join(CONTENT_DIR, `${id}.md`);
+async function writeJson(pathname: string, value: unknown) {
+  await put(pathname, `${JSON.stringify(value, null, 2)}\n`, {
+    access: "private",
+    allowOverwrite: true,
+    contentType: "application/json",
+  });
 }
 
 export async function listPostMeta(): Promise<PostMeta[]> {
@@ -52,12 +67,7 @@ export async function getPost(id: string): Promise<Post | null> {
   const posts = await listPostMeta();
   const meta = posts.find((post) => post.id === id);
   if (!meta) return null;
-  let content = "";
-  try {
-    content = await fs.readFile(await contentPath(id), "utf8");
-  } catch {
-    content = "";
-  }
+  const content = await readText(contentPath(id));
   return { ...meta, content };
 }
 
@@ -149,7 +159,11 @@ export async function savePost(
   }
 
   await writeJson(POSTS_FILE, next);
-  await fs.writeFile(await contentPath(meta.id), input.content, "utf8");
+  await put(contentPath(meta.id), input.content, {
+    access: "private",
+    allowOverwrite: true,
+    contentType: "text/markdown; charset=utf-8",
+  });
   return { ...meta, content: input.content };
 }
 
@@ -160,7 +174,7 @@ export async function deletePost(id: string) {
     posts.filter((post) => post.id !== id),
   );
   try {
-    await fs.unlink(await contentPath(id));
+    await del(contentPath(id));
   } catch {
     // Content file may not exist for a brand-new draft.
   }

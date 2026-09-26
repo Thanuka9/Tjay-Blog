@@ -1,13 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
+  images: {
+    remotePatterns: [
       {
-        source: "/uploads/:filename",
-        destination: "/api/uploads/:filename",
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
       },
-    ];
+    ],
   },
 };
 
