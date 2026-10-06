@@ -6,7 +6,7 @@ import { listPublishedPosts, listTopics } from "@/lib/store";
 export const metadata: Metadata = {
   title: "Topics",
   description:
-    "Browse The Assay by subject: longevity, peptides, regulation, nutrition, and metabolism.",
+    "Browse The Abyss by subject: longevity, peptides, regulation, nutrition, and metabolism.",
 };
 
 export default async function TopicsPage() {
@@ -54,7 +54,8 @@ export default async function TopicsPage() {
                   </h2>
                 </Link>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {counts[topic.slug]} {counts[topic.slug] === 1 ? "article" : "articles"}
+                  {counts[topic.slug]}{" "}
+                  {counts[topic.slug] === 1 ? "article" : "articles"}
                 </p>
               </div>
               <p className="leading-7 text-muted-foreground lg:col-span-5">

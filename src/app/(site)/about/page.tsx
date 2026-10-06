@@ -20,35 +20,45 @@ export default function AboutPage() {
           </h1>
           <div className="mt-8 space-y-6 text-[1.0625rem] leading-[1.8] text-foreground/90">
             <p>
-              An assay is a test. It measures what is actually in a sample, not
-              what the label promises. That is the job of this site.
+              The Abyss is a science journal for everyone. We go below the
+              headlines, into the evidence, to make published research readable
+              without losing its limits, sources, or uncertainty.
             </p>
             <p>
-              Longevity culture moves fast. A compound can go from a lab notebook
-              to a TikTok caption in a week, and from a caption to an injection in
-              a month. The research does not move that fast. We write in the
-              space between those two speeds.
+              Longevity culture moves fast. A compound can go from a lab
+              notebook to a TikTok caption in a week, and from a caption to an
+              injection in a month. The research does not move that fast. We
+              write in the space between those two speeds.
             </p>
             <p>
               We are not against peptides, supplements, or ambitious science.
-              Insulin is a peptide. GLP-1 drugs are peptides. Both changed medicine
-              because someone did the slow work: dosing, manufacturing, side
-              effects, human trials. We will say so when that work exists. We
-              will also say so when it does not.
+              Insulin is a peptide. GLP-1 drugs are peptides. Both changed
+              medicine because someone did the slow work: dosing, manufacturing,
+              side effects, human trials. We will say so when that work exists.
+              We will also say so when it does not.
             </p>
             <p>
-              {site.name} is not medical advice, and it is not a substitute for a
-              clinician who knows your history. It is a place to read the
+              {site.name} is not medical advice, and it is not a substitute for
+              a clinician who knows your history. It is a place to read the
               evidence with the conflicts of interest and the regulatory record
               still attached.
             </p>
           </div>
+          <div className="mt-8 flex flex-wrap gap-5 text-sm underline">
+            <Link href="/editorial-standards">Editorial standards</Link>
+            <Link href="/corrections">Corrections</Link>
+            <Link href="/issues">Journal archive</Link>
+          </div>
         </div>
         <aside className="lg:col-span-5">
           <div className="rounded-xl border border-border bg-card p-6 sm:p-8 lg:sticky lg:top-28">
-            <h2 className="font-serif text-2xl tracking-tight">How to read us</h2>
+            <h2 className="font-serif text-2xl tracking-tight">
+              How to read us
+            </h2>
             <ul className="mt-5 space-y-4 text-sm leading-6 text-muted-foreground">
-              <li>Every claim is scored against published evidence, not a caption.</li>
+              <li>
+                Every claim is scored against published evidence, not a caption.
+              </li>
               <li>Sources are linked in the piece, then listed at the end.</li>
               <li>Regulation is part of the science, not a footnote.</li>
             </ul>

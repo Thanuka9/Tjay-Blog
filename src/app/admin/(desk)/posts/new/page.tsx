@@ -1,8 +1,8 @@
 import { PostEditor } from "@/components/admin/PostEditor";
-import { listTopics } from "@/lib/store";
+import { listTopics, listIssueMeta } from "@/lib/store";
 
 export default async function NewPostPage() {
-  const topics = await listTopics();
+  const [topics, issues] = await Promise.all([listTopics(), listIssueMeta()]);
   const defaultTopic = topics[0]?.slug ?? "longevity";
   const id = crypto.randomUUID();
 
@@ -18,6 +18,7 @@ export default async function NewPostPage() {
       <PostEditor
         key={id}
         topics={topics}
+        issues={issues}
         post={{
           id,
           title: "",
@@ -27,7 +28,7 @@ export default async function NewPostPage() {
           coverImage: null,
           topic: defaultTopic,
           tags: [],
-          author: "The Assay",
+          author: "The Abyss",
           status: "draft",
           featured: false,
           seoTitle: "",

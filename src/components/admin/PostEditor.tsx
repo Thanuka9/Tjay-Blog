@@ -23,11 +23,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { isImageFile } from "@/lib/image-files";
 import { parseBodyImages } from "@/lib/markdown-images";
 import { slugify } from "@/lib/site";
-import type { Topic } from "@/lib/types";
+import {
+  ARTICLE_TYPES,
+  type Issue,
+  type PostMeta,
+  type Topic,
+} from "@/lib/types";
+import { issueLabel } from "@/lib/issues";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-type EditorPost = {
+type EditorPost = Pick<
+  PostMeta,
+  | "issueId"
+  | "articleCode"
+  | "articleType"
+  | "sequence"
+  | "articlePdf"
+  | "citation"
+> & {
   id: string;
   title: string;
   slug: string;
@@ -46,11 +60,11 @@ type EditorPost = {
 export function PostEditor({
   post,
   topics,
-  slideshowSlot = null,
+  issues = [],
 }: {
   post: EditorPost;
   topics: Topic[];
-  slideshowSlot?: number | null;
+  issues?: Issue[];
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -71,7 +85,10 @@ export function PostEditor({
   const bodyImages = parseBodyImages(content);
   const charts = parseCharts(content);
 
-  async function uploadFile(file: File, folder: "covers" | "articles" = "articles") {
+  async function uploadFile(
+    file: File,
+    folder: "covers" | "articles" = "articles",
+  ) {
     const body = new FormData();
     body.set("file", file);
     body.set("folder", folder);
@@ -186,366 +203,463 @@ export function PostEditor({
 
   return (
     <>
-    <form
-      ref={formRef}
-      className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void persist(status);
-      }}
-    >
-      <input type="hidden" name="id" value={post.id} />
-      <input type="hidden" name="coverImage" value={coverImage} />
-      <input type="hidden" name="topic" value={topic} />
-      <input type="hidden" name="status" value={status} />
-      <input type="hidden" name="featured" value={featured ? "true" : "false"} />
-      <input type="hidden" name="content" value={content} />
+      <form
+        ref={formRef}
+        className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void persist(status);
+        }}
+      >
+        <input type="hidden" name="id" value={post.id} />
+        <input type="hidden" name="coverImage" value={coverImage} />
+        <input type="hidden" name="topic" value={topic} />
+        <input type="hidden" name="status" value={status} />
+        <input
+          type="hidden"
+          name="featured"
+          value={featured ? "true" : "false"}
+        />
+        <input type="hidden" name="content" value={content} />
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Headline</Label>
-          <Input
-            id="title"
-            name="title"
-            value={title}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              if (!post.slug) setSlug(slugify(event.target.value));
-            }}
-            placeholder="Are peptides the real future of longevity?"
-            className="h-11 font-serif text-lg"
-            required
-          />
-        </div>
-        <Tabs defaultValue="write">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="write">Write</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-            </TabsList>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                value={caption}
-                onChange={(event) => setCaption(event.target.value)}
-                placeholder="Caption for next image"
-                className="h-8 w-48 text-sm"
-              />
-              <label
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "relative cursor-pointer",
-                  uploading && "pointer-events-none opacity-50",
-                )}
-              >
-                <ImagePlus />
-                {uploading ? "Uploading…" : "Add images"}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,.jpg,.jpeg,.png,.webp,.gif,.svg,.avif"
-                  multiple
-                  disabled={uploading}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                  onChange={(event) => {
-                    const files = [...(event.target.files ?? [])];
-                    event.target.value = "";
-                    if (files.length) void insertImages(files);
-                  }}
-                />
-              </label>
-              <Button type="button" variant="outline" size="sm" onClick={() => setChartOpen(true)}>
-                <BarChart3 />
-                Chart
-              </Button>
-            </div>
-          </div>
-          <p className="mb-3 text-xs leading-5 text-muted-foreground">
-            Put the cursor where the photo should appear, then click Add images,
-            paste, or drop files onto the editor. You can select several at
-            once. The caption field becomes the line under the photo; leave it
-            blank to use the file name.
-          </p>
-          <TabsContent value="write" forceMount className="data-inactive:hidden data-[state=inactive]:hidden">
-            <Textarea
-              ref={contentRef}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              onPaste={(event) => {
-                const files = [...event.clipboardData.files].filter(isImageFile);
-                if (files.length === 0) return;
-                event.preventDefault();
-                void insertImages(files);
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Headline</Label>
+            <Input
+              id="title"
+              name="title"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (!post.slug) setSlug(slugify(event.target.value));
               }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragging(false);
-                void insertImages(event.dataTransfer.files);
-              }}
-              className={cn(
-                "min-h-[min(70vh,44rem)] font-mono text-sm leading-6",
-                dragging && "ring-2 ring-brand/40",
-              )}
-              placeholder="Write in Markdown. Add images from the toolbar or drop them here."
+              placeholder="Are peptides the real future of longevity?"
+              className="h-11 font-serif text-lg"
+              required
             />
-          </TabsContent>
-          <TabsContent value="preview">
-            <div className="rounded-xl border border-border bg-background p-6 sm:p-10">
-              <ArticleBody content={content || "*Nothing to preview yet.*"} />
-            </div>
-          </TabsContent>
-        </Tabs>
-        {bodyImages.length > 0 ? (
-          <div>
-            <p className="mb-2 text-sm font-medium">
-              Images in this article ({bodyImages.length})
-            </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {bodyImages.map((image, index) => (
-                <figure
-                  key={`${image.src}-${index}`}
-                  className="overflow-hidden rounded-lg border border-border bg-muted"
+          </div>
+          <Tabs defaultValue="write">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <TabsList>
+                <TabsTrigger value="write">Write</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+              </TabsList>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  placeholder="Caption for next image"
+                  className="h-8 w-48 text-sm"
+                />
+                <label
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "relative cursor-pointer",
+                    uploading && "pointer-events-none opacity-50",
+                  )}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="h-20 w-full object-cover"
+                  <ImagePlus />
+                  {uploading ? "Uploading…" : "Add images"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,.jpg,.jpeg,.png,.webp,.gif,.svg,.avif"
+                    multiple
+                    disabled={uploading}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    onChange={(event) => {
+                      const files = [...(event.target.files ?? [])];
+                      event.target.value = "";
+                      if (files.length) void insertImages(files);
+                    }}
                   />
-                  {image.alt ? (
-                    <figcaption className="truncate px-1.5 py-1 text-[11px] text-muted-foreground">
-                      {image.alt}
-                    </figcaption>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-full rounded-none text-destructive"
-                    onClick={() => {
-                      setContent((value) => removeNthMatch(value, imagePattern(), index));
-                      toast.success("Image removed. Save the post to keep this.");
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </figure>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {charts.length > 0 ? (
-          <div>
-            <p className="mb-2 text-sm font-medium">
-              Charts in this article ({charts.length})
-            </p>
-            <ul className="space-y-2">
-              {charts.map((chart, index) => (
-                <li
-                  key={`${chart}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setChartOpen(true)}
                 >
-                  <span className="min-w-0 truncate text-sm">{chart}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => {
-                      setContent((value) => removeNthMatch(value, chartPattern(), index));
-                      toast.success("Chart removed. Save the post to keep this.");
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-
-      <aside className="space-y-5 lg:sticky lg:top-6">
-        <div className="space-y-2">
-          <Label>On the site</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant={status === "draft" ? "default" : "outline"}
-              className="w-full"
-              onClick={() => setStatus("draft")}
-            >
-              Draft
-            </Button>
-            <Button
-              type="button"
-              variant={status === "published" ? "default" : "outline"}
-              className="w-full"
-              onClick={() => setStatus("published")}
-            >
-              Published
-            </Button>
-          </div>
-          <p className="text-xs leading-5 text-muted-foreground">
-            {status === "published"
-              ? "This piece will appear on Home, Articles, and its topic page."
-              : "Drafts stay in the editor desk until you publish."}
-          </p>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-3">
-          <div>
-            <p className="text-sm font-medium">Featured</p>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Leads the articles page. Only one piece stays featured.
+                  <BarChart3 />
+                  Chart
+                </Button>
+              </div>
+            </div>
+            <p className="mb-3 text-xs leading-5 text-muted-foreground">
+              Put the cursor where the photo should appear, then click Add
+              images, paste, or drop files onto the editor. You can select
+              several at once. The caption field becomes the line under the
+              photo; leave it blank to use the file name.
             </p>
-          </div>
-          <Switch checked={featured} onCheckedChange={setFeatured} />
-        </div>
-        <div className="rounded-lg border border-border px-3 py-3">
-          <p className="text-sm font-medium">Home slideshow</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {slideshowSlot
-              ? `This piece is slide ${slideshowSlot} of 5.`
-              : "Not in the home slideshow yet."}{" "}
-            Pick up to five articles, or use the latest five, on the{" "}
-            <Link href="/admin/home" className="underline hover:text-foreground">
-              Home slideshow
-            </Link>{" "}
-            page.
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" name="slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Topic</Label>
-          <Select value={topic} onValueChange={setTopic}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {topics.map((item) => (
-                <SelectItem key={item.slug} value={item.slug}>
-                  {item.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="tags">Tags</Label>
-          <Input id="tags" name="tags" defaultValue={post.tags.join(", ")} placeholder="peptides, FDA" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="author">Author</Label>
-          <Input id="author" name="author" defaultValue={post.author} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="excerpt">Excerpt</Label>
-          <Textarea
-            id="excerpt"
-            name="excerpt"
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            className="min-h-24"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Cover image</Label>
-          {coverImage ? (
-            <div className="overflow-hidden rounded-lg border border-border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverImage} alt="" className="h-32 w-full object-cover" />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full text-destructive"
-                onClick={() => {
-                  setCoverImage("");
-                  toast.success("Cover removed. Save the post to keep this.");
+            <TabsContent
+              value="write"
+              forceMount
+              className="data-inactive:hidden data-[state=inactive]:hidden"
+            >
+              <Textarea
+                ref={contentRef}
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                onPaste={(event) => {
+                  const files = [...event.clipboardData.files].filter(
+                    isImageFile,
+                  );
+                  if (files.length === 0) return;
+                  event.preventDefault();
+                  void insertImages(files);
                 }}
-              >
-                <X />
-                Remove cover
-              </Button>
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  void insertImages(event.dataTransfer.files);
+                }}
+                className={cn(
+                  "min-h-[min(70vh,44rem)] font-mono text-sm leading-6",
+                  dragging && "ring-2 ring-brand/40",
+                )}
+                placeholder="Write in Markdown. Add images from the toolbar or drop them here."
+              />
+            </TabsContent>
+            <TabsContent value="preview">
+              <div className="rounded-xl border border-border bg-background p-6 sm:p-10">
+                <ArticleBody content={content || "*Nothing to preview yet.*"} />
+              </div>
+            </TabsContent>
+          </Tabs>
+          {bodyImages.length > 0 ? (
+            <div>
+              <p className="mb-2 text-sm font-medium">
+                Images in this article ({bodyImages.length})
+              </p>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {bodyImages.map((image, index) => (
+                  <figure
+                    key={`${image.src}-${index}`}
+                    className="overflow-hidden rounded-lg border border-border bg-muted"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.src}
+                      alt={image.alt}
+                      className="h-20 w-full object-cover"
+                    />
+                    {image.alt ? (
+                      <figcaption className="truncate px-1.5 py-1 text-[11px] text-muted-foreground">
+                        {image.alt}
+                      </figcaption>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-full rounded-none text-destructive"
+                      onClick={() => {
+                        setContent((value) =>
+                          removeNthMatch(value, imagePattern(), index),
+                        );
+                        toast.success(
+                          "Image removed. Save the post to keep this.",
+                        );
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </figure>
+                ))}
+              </div>
             </div>
           ) : null}
-          <Input
-            type="file"
-            accept="image/*"
-            onChange={async (event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) return;
-              if (!isImageFile(file)) {
-                toast.error("Choose a jpg, png, webp, gif, svg, or avif.");
-                return;
+          {charts.length > 0 ? (
+            <div>
+              <p className="mb-2 text-sm font-medium">
+                Charts in this article ({charts.length})
+              </p>
+              <ul className="space-y-2">
+                {charts.map((chart, index) => (
+                  <li
+                    key={`${chart}-${index}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                  >
+                    <span className="min-w-0 truncate text-sm">{chart}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => {
+                        setContent((value) =>
+                          removeNthMatch(value, chartPattern(), index),
+                        );
+                        toast.success(
+                          "Chart removed. Save the post to keep this.",
+                        );
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="space-y-5 lg:sticky lg:top-6">
+          <div className="space-y-2">
+            <Label>On the site</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={status === "draft" ? "default" : "outline"}
+                className="w-full"
+                onClick={() => setStatus("draft")}
+              >
+                Draft
+              </Button>
+              <Button
+                type="button"
+                variant={status === "published" ? "default" : "outline"}
+                className="w-full"
+                onClick={() => setStatus("published")}
+              >
+                Published
+              </Button>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {status === "published"
+                ? "This article will appear on the site and in its issue when that issue is published."
+                : "Drafts stay in the editor desk until you publish."}
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-3">
+            <div>
+              <p className="text-sm font-medium">Featured</p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Leads the articles page. Only one piece stays featured.
+              </p>
+            </div>
+            <Switch checked={featured} onCheckedChange={setFeatured} />
+          </div>
+          <fieldset className="space-y-3 rounded-lg border border-border p-3">
+            <legend className="px-1 text-sm font-medium">
+              Journal metadata
+            </legend>
+            <Label htmlFor="issueId">Issue</Label>
+            <select
+              id="issueId"
+              name="issueId"
+              defaultValue={
+                post.issueId === null
+                  ? ""
+                  : post.issueId ||
+                    ("publishedAt" in post &&
+                    typeof post.publishedAt === "string"
+                      ? post.publishedAt.slice(0, 7)
+                      : "")
               }
-              try {
-                const url = await uploadFile(file, "covers");
-                setCoverImage(url);
-                toast.success("Cover updated");
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Upload failed");
-              }
-            }}
-          />
-          <p className="text-xs text-muted-foreground">
-            The cover is the large photo at the top of the article and in the
-            home slideshow. Body photos are added with Add images above.
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="seoTitle">SEO title</Label>
-          <Input id="seoTitle" name="seoTitle" defaultValue={post.seoTitle} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="seoDescription">SEO description</Label>
-          <Textarea
-            id="seoDescription"
-            name="seoDescription"
-            defaultValue={post.seoDescription}
-            className="min-h-20"
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={pending !== null}
-          onClick={() => void persist("draft")}
-        >
-          <Save />
-          {pending === "draft" ? "Saving…" : "Save draft"}
-        </Button>
-        <Button
-          type="button"
-          className="w-full"
-          disabled={pending !== null}
-          onClick={() => void persist("published")}
-        >
-          <Globe />
-          {pending === "published"
-            ? "Publishing…"
-            : status === "published"
-              ? "Save and keep live"
-              : "Publish to site"}
-        </Button>
-        {slug && status === "published" ? (
-          <Button asChild variant="outline" className="w-full">
-            <a href={`/articles/${slug}`} target="_blank" rel="noreferrer">
-              View on site
-            </a>
+              className="w-full rounded border border-border bg-background p-2 text-sm"
+            >
+              <option value="">Unassigned</option>
+              {issues.map((issue) => (
+                <option key={issue.id} value={issue.id}>
+                  {issueLabel(issue)} · {issue.status}
+                </option>
+              ))}
+            </select>
+            <Label htmlFor="articleType">Article type</Label>
+            <select
+              id="articleType"
+              name="articleType"
+              defaultValue={post.articleType || "Research Article"}
+              className="w-full rounded border border-border bg-background p-2 text-sm"
+            >
+              {ARTICLE_TYPES.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+            <Label htmlFor="articleCode">Article number</Label>
+            <Input
+              id="articleCode"
+              name="articleCode"
+              defaultValue={post.articleCode || ""}
+              placeholder="AB-0101 (automatic if blank)"
+            />
+            <Label htmlFor="sequence">Reading order</Label>
+            <Input
+              id="sequence"
+              name="sequence"
+              type="number"
+              min={1}
+              max={999}
+              defaultValue={post.sequence}
+            />
+            <Label htmlFor="articlePdf">Article PDF URL (optional)</Label>
+            <Input
+              id="articlePdf"
+              name="articlePdf"
+              type="url"
+              defaultValue={post.articlePdf || ""}
+            />
+            <Label htmlFor="citation">Custom citation (optional)</Label>
+            <Textarea
+              id="citation"
+              name="citation"
+              defaultValue={post.citation || ""}
+            />
+            <Link href="/admin/issues" className="block text-xs underline">
+              Manage journal issues
+            </Link>
+          </fieldset>
+          <div className="space-y-2">
+            <Label htmlFor="slug">Slug</Label>
+            <Input
+              id="slug"
+              name="slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Topic</Label>
+            <Select value={topic} onValueChange={setTopic}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {topics.map((item) => (
+                  <SelectItem key={item.slug} value={item.slug}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags</Label>
+            <Input
+              id="tags"
+              name="tags"
+              defaultValue={post.tags.join(", ")}
+              placeholder="peptides, FDA"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="author">Author</Label>
+            <Input id="author" name="author" defaultValue={post.author} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="excerpt">Excerpt</Label>
+            <Textarea
+              id="excerpt"
+              name="excerpt"
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              className="min-h-24"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Cover image</Label>
+            {coverImage ? (
+              <div className="overflow-hidden rounded-lg border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImage}
+                  alt=""
+                  className="h-32 w-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-destructive"
+                  onClick={() => {
+                    setCoverImage("");
+                    toast.success("Cover removed. Save the post to keep this.");
+                  }}
+                >
+                  <X />
+                  Remove cover
+                </Button>
+              </div>
+            ) : null}
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                if (!isImageFile(file)) {
+                  toast.error("Choose a jpg, png, webp, gif, svg, or avif.");
+                  return;
+                }
+                try {
+                  const url = await uploadFile(file, "covers");
+                  setCoverImage(url);
+                  toast.success("Cover updated");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Upload failed",
+                  );
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              The cover appears in the article and its PDF. Body photos are
+              added with Add images above. Set the journal cover on the issue
+              page.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="seoTitle">SEO title</Label>
+            <Input id="seoTitle" name="seoTitle" defaultValue={post.seoTitle} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="seoDescription">SEO description</Label>
+            <Textarea
+              id="seoDescription"
+              name="seoDescription"
+              defaultValue={post.seoDescription}
+              className="min-h-20"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={pending !== null}
+            onClick={() => void persist("draft")}
+          >
+            <Save />
+            {pending === "draft" ? "Saving…" : "Save draft"}
           </Button>
-        ) : null}
-      </aside>
-    </form>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={pending !== null}
+            onClick={() => void persist("published")}
+          >
+            <Globe />
+            {pending === "published"
+              ? "Publishing…"
+              : status === "published"
+                ? "Save and keep live"
+                : "Publish to site"}
+          </Button>
+          {slug && status === "published" ? (
+            <Button asChild variant="outline" className="w-full">
+              <a href={`/articles/${slug}`} target="_blank" rel="noreferrer">
+                View on site
+              </a>
+            </Button>
+          ) : null}
+        </aside>
+      </form>
       <ChartBuilder
         open={chartOpen}
         onOpenChange={setChartOpen}

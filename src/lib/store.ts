@@ -5,19 +5,27 @@ import { del, get, put } from "@vercel/blob";
 import { connection } from "next/server";
 import type {
   HomeSettings,
+  Issue,
   OutboundMail,
   Post,
   PostMeta,
   Subscriber,
   Topic,
 } from "@/lib/types";
-import { readingTimeFrom, slugify } from "@/lib/site";
+import { readingTimeFrom, slugify, site } from "@/lib/site";
+import {
+  articleCode,
+  articleIssueId,
+  journalIssues,
+  legacyIssues,
+} from "@/lib/issues";
 
 const POSTS_FILE = "tjay/state/posts.json";
 const SUBS_FILE = "tjay/state/subscribers.json";
 const HOME_FILE = "tjay/state/home.json";
 const TOPICS_FILE = "tjay/state/topics.json";
 const OUTBOX_FILE = "tjay/state/outbox.json";
+const ISSUES_FILE = "tjay/state/issues.json";
 
 function privateBlobToken() {
   const token = process.env.BLOB_PRIVATE_READ_WRITE_TOKEN?.trim();
@@ -47,7 +55,9 @@ function blobPathsIn(text: string) {
     ) ?? [];
   for (const url of matches) {
     try {
-      const pathname = decodeURIComponent(new URL(url).pathname.replace(/^\//, ""));
+      const pathname = decodeURIComponent(
+        new URL(url).pathname.replace(/^\//, ""),
+      );
       if (pathname.startsWith("tjay/uploads/")) paths.add(pathname);
     } catch {
       // Ignore a malformed image URL in the article body.
@@ -66,7 +76,8 @@ async function releaseBlobImages(
   const stillUsed = new Set<string>();
   await Promise.all(
     otherPosts.map(async (post) => {
-      for (const pathname of blobPathsIn(post.coverImage ?? "")) stillUsed.add(pathname);
+      for (const pathname of blobPathsIn(post.coverImage ?? ""))
+        stillUsed.add(pathname);
       const content = await readText(contentPath(post.id));
       for (const pathname of blobPathsIn(content)) stillUsed.add(pathname);
     }),
@@ -112,7 +123,41 @@ async function writeJson(pathname: string, value: unknown) {
 }
 
 export async function listPostMeta(): Promise<PostMeta[]> {
-  const posts = await readJson<PostMeta[]>(POSTS_FILE, []);
+  const [rawPosts, registeredIssues] = await Promise.all([
+    readJson<PostMeta[]>(POSTS_FILE, []),
+    readJson<Issue[]>(ISSUES_FILE, []),
+  ]);
+  const stored = rawPosts.map((post) => ({
+    ...post,
+    author: post.author === "The Assay" ? site.name : post.author,
+    seoTitle: post.seoTitle?.replaceAll("The Assay", site.name),
+    seoDescription: post.seoDescription?.replaceAll("The Assay", site.name),
+  }));
+  const defaults = legacyIssues(stored);
+  const posts = stored.map((post) => {
+    const issue =
+      registeredIssues.find((issue) => issue.id === articleIssueId(post)) ??
+      defaults.find((issue) => issue.id === articleIssueId(post));
+    if (!issue) return post;
+    const members = stored
+      .filter((item) => articleIssueId(item) === issue.id)
+      .sort(
+        (a, b) =>
+          (a.sequence ?? Number.MAX_SAFE_INTEGER) -
+            (b.sequence ?? Number.MAX_SAFE_INTEGER) ||
+          (a.publishedAt ?? a.createdAt).localeCompare(
+            b.publishedAt ?? b.createdAt,
+          ) ||
+          a.id.localeCompare(b.id),
+      );
+    const sequence =
+      post.sequence ?? members.findIndex((item) => item.id === post.id) + 1;
+    return {
+      ...post,
+      sequence,
+      articleCode: post.articleCode || articleCode(issue, sequence),
+    };
+  });
   return posts.sort((a, b) => {
     const aDate = a.publishedAt ?? a.createdAt;
     const bDate = b.publishedAt ?? b.createdAt;
@@ -121,7 +166,10 @@ export async function listPostMeta(): Promise<PostMeta[]> {
 }
 
 async function withContent(meta: PostMeta): Promise<Post> {
-  const content = await readText(contentPath(meta.id));
+  const content = (await readText(contentPath(meta.id))).replaceAll(
+    "The Assay",
+    site.name,
+  );
   return { ...meta, content };
 }
 
@@ -151,6 +199,91 @@ export async function listPostsByTopic(topic: string): Promise<Post[]> {
   return posts.filter((post) => post.topic === topic);
 }
 
+export async function listIssueMeta(): Promise<Issue[]> {
+  const [stored, posts] = await Promise.all([
+    readJson<Issue[]>(ISSUES_FILE, []),
+    listPostMeta(),
+  ]);
+  const ids = new Set(stored.map((issue) => issue.id));
+  return [
+    ...stored,
+    ...legacyIssues(
+      posts.filter((post) => post.status === "published" && post.publishedAt),
+    ).filter((issue) => !ids.has(issue.id)),
+  ].sort((a, b) => b.id.localeCompare(a.id));
+}
+
+export async function listPublishedIssues() {
+  const [posts, issues] = await Promise.all([
+    listPublishedPosts(),
+    listIssueMeta(),
+  ]);
+  return journalIssues(posts, issues);
+}
+
+export async function getPublishedIssue(id: string) {
+  const issues = await listPublishedIssues();
+  return id === "current"
+    ? (issues[0] ?? null)
+    : (issues.find((issue) => issue.id === id) ?? null);
+}
+
+export async function saveIssue(input: Issue, postIds: string[]) {
+  const [stored, posts, issues] = await Promise.all([
+    readJson<Issue[]>(ISSUES_FILE, []),
+    listPostMeta(),
+    listIssueMeta(),
+  ]);
+  if (
+    issues.some(
+      (issue) =>
+        issue.id !== input.id &&
+        issue.volume === input.volume &&
+        issue.number === input.number,
+    )
+  )
+    throw new Error("That volume and issue number already exist.");
+  const selected = [...new Set(postIds)];
+  if (selected.some((id) => !posts.some((post) => post.id === id)))
+    throw new Error("One of the selected articles no longer exists.");
+  if (
+    input.status === "published" &&
+    !selected.some((id) =>
+      posts.some((post) => post.id === id && post.status === "published"),
+    )
+  )
+    throw new Error(
+      "Publish at least one article before publishing the issue.",
+    );
+  const nextPosts = posts.map((post) => {
+    const index = selected.indexOf(post.id);
+    if (index >= 0)
+      return {
+        ...post,
+        issueId: input.id,
+        sequence: index + 1,
+        articleCode:
+          articleIssueId(post) === input.id && post.articleCode
+            ? post.articleCode
+            : articleCode(input, index + 1),
+      };
+    return articleIssueId(post) === input.id
+      ? { ...post, issueId: null, articleCode: undefined, sequence: undefined }
+      : post;
+  });
+  const codes = nextPosts.map((post) => post.articleCode).filter(Boolean);
+  if (new Set(codes).size !== codes.length)
+    throw new Error(
+      "Article numbers must be unique. Check the assigned articles before saving.",
+    );
+  await writeJson(POSTS_FILE, nextPosts);
+  await writeJson(ISSUES_FILE, [
+    ...stored.filter((issue) => issue.id !== input.id),
+    input,
+  ]);
+  return input;
+}
+
 export async function searchPosts(query: string): Promise<Post[]> {
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
@@ -171,7 +304,10 @@ export async function searchPosts(query: string): Promise<Post[]> {
 }
 
 export async function savePost(
-  input: Omit<Post, "readingTime" | "updatedAt" | "createdAt" | "publishedAt"> & {
+  input: Omit<
+    Post,
+    "readingTime" | "updatedAt" | "createdAt" | "publishedAt"
+  > & {
     createdAt?: string;
     publishedAt?: string | null;
   },
@@ -179,6 +315,40 @@ export async function savePost(
   const now = new Date().toISOString();
   const posts = await listPostMeta();
   const existing = posts.find((post) => post.id === input.id);
+  if (input.issueId) {
+    const issue = (await listIssueMeta()).find(
+      (item) => item.id === input.issueId,
+    );
+    if (!issue) throw new Error("Choose an existing issue.");
+    input.sequence ??=
+      Math.max(
+        0,
+        ...posts
+          .filter(
+            (post) => post.id !== input.id && articleIssueId(post) === issue.id,
+          )
+          .map((post) => post.sequence ?? 0),
+      ) + 1;
+    input.articleCode ||= articleCode(issue, input.sequence);
+    if (
+      posts.some(
+        (post) =>
+          post.id !== input.id &&
+          articleIssueId(post) === input.issueId &&
+          post.sequence === input.sequence,
+      )
+    )
+      throw new Error(
+        "That reading order is already used in this issue. Reorder articles on the issue page.",
+      );
+  }
+  if (
+    input.articleCode &&
+    posts.some(
+      (post) => post.id !== input.id && post.articleCode === input.articleCode,
+    )
+  )
+    throw new Error("That article number is already in use.");
   const slugTaken = posts.some(
     (post) => post.slug === input.slug && post.id !== input.id,
   );
@@ -199,10 +369,16 @@ export async function savePost(
     author: input.author,
     publishedAt:
       input.status === "published"
-        ? existing?.publishedAt ?? input.publishedAt ?? now
+        ? (existing?.publishedAt ?? input.publishedAt ?? now)
         : null,
     seoTitle: input.seoTitle,
     seoDescription: input.seoDescription,
+    issueId: input.issueId,
+    articleCode: input.articleCode,
+    articleType: input.articleType,
+    sequence: input.sequence,
+    articlePdf: input.articlePdf,
+    citation: input.citation,
     readingTime: readingTimeFrom(input.content),
     createdAt: existing?.createdAt ?? input.createdAt ?? now,
     updatedAt: now,
@@ -218,7 +394,9 @@ export async function savePost(
     }
   }
 
-  const previousContent = existing ? await readText(contentPath(existing.id)) : "";
+  const previousContent = existing
+    ? await readText(contentPath(existing.id))
+    : "";
   await writeJson(POSTS_FILE, next);
   await put(contentPath(meta.id), input.content, {
     access: "private",
@@ -326,12 +504,16 @@ export async function getHomeSettings(): Promise<HomeSettings> {
   const stored = await readJson<Partial<HomeSettings>>(HOME_FILE, DEFAULT_HOME);
   const source = stored.source === "selected" ? "selected" : "latest";
   const postIds = Array.isArray(stored.postIds)
-    ? stored.postIds.filter((id): id is string => typeof id === "string").slice(0, 5)
+    ? stored.postIds
+        .filter((id): id is string => typeof id === "string")
+        .slice(0, 5)
     : [];
   return { source, postIds };
 }
 
-export async function saveHomeSettings(input: HomeSettings): Promise<HomeSettings> {
+export async function saveHomeSettings(
+  input: HomeSettings,
+): Promise<HomeSettings> {
   const published = await listPublishedPosts();
   const allowed = new Set(published.map((post) => post.id));
   const postIds = [...new Set(input.postIds)]

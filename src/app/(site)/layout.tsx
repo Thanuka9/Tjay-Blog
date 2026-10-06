@@ -8,7 +8,6 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   return (
     <div className="journal-site flex min-h-full flex-1 flex-col">
       <SiteHeader />

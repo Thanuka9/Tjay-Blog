@@ -2,15 +2,20 @@ export const site = {
   name: "The Abyss",
   tagline: "Below the headlines, into the evidence.",
   description:
-    "A science journal for claims that move faster than the evidence. We read the studies so you can decide with more than a caption.",
+    "A science journal for everyone. Monthly issues, evidence-led articles, and free journal downloads. Below the headlines, into the evidence.",
+  supportingDescription: "A science journal for everyone",
 };
 
 export const nav = [
-  { href: "/issues/current", label: "Current issue" },
-  { href: "/archive", label: "Archive" },
+  { href: "/current-issue", label: "Current Issue" },
+  { href: "/issues", label: "Archive" },
   { href: "/about", label: "About" },
-  { href: "/subscribe", label: "Newsletter" },
+  { href: "/newsletter", label: "Newsletter" },
 ];
+
+export function publicationUrl() {
+  return (process.env.SITE_URL || "https://theabyssos.com").replace(/\/$/, "");
+}
 
 export function slugify(value: string) {
   return value

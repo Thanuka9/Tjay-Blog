@@ -3,9 +3,10 @@ import { Container, Kicker } from "@/components/site/layout";
 import { SubscribeForm } from "@/components/site/SubscribeForm";
 
 export const metadata: Metadata = {
-  title: "Subscribe",
+  title: "Newsletter",
+  alternates: { canonical: "/newsletter" },
   description:
-    "Get The Assay when a new piece is ready. No daily mail, no caption-speed takes.",
+    "One issue a month. Four articles. Free. Get The Abyss in your inbox when each article is published.",
 };
 
 export default function SubscribePage() {
@@ -15,20 +16,23 @@ export default function SubscribePage() {
         <div className="lg:col-span-6">
           <Kicker>Newsletter</Kicker>
           <h1 className="mt-3 font-serif text-4xl tracking-tight sm:text-5xl">
-            Subscribe
+            One issue a month.
+            <br />
+            Four articles. Free.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
-            We do not send a letter every morning. We send one when a piece is
-            ready: reported, sourced, and scored against the actual literature.
+            Get each article when it is published, with sources you can follow
+            and evidence you can check. Read online or download the full
+            journal.
           </p>
           <ul className="mt-8 space-y-3 text-sm leading-6 text-muted-foreground">
             <li>One address. No ads.</li>
-            <li>Kisspeptin, NAD+, and retatrutide are in the pipeline.</li>
-            <li>You can ignore us the moment we get boring.</li>
+            <li>No paywall. Free article and journal downloads.</li>
+            <li>Unsubscribe anytime.</li>
           </ul>
         </div>
         <div className="rounded-xl border border-border bg-card p-6 sm:p-8 lg:col-span-6">
-          <p className="font-serif text-2xl">Get the next assay</p>
+          <p className="font-serif text-2xl">Get the next issue</p>
           <p className="mt-2 mb-6 text-sm text-muted-foreground">
             The next piece lands here first.
           </p>
