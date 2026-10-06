@@ -65,6 +65,8 @@ export default async function ArticlePage({
               {formatDate(post.publishedAt)} · {post.readingTime} min read
             </p>
             <ShareActions />
+            <a href={`/api/download/article/${post.slug}`} download className="journal-download print:hidden">↓ Download article (PDF)</a>
+            <Link href="/issues/current" className="text-sm print:hidden">Explore the current issue →</Link>
           </div>
         </div>
 

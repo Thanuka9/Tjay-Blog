@@ -1,15 +1,15 @@
 export const site = {
-  name: "The Assay",
-  tagline: "What the research actually says.",
+  name: "The Abyss",
+  tagline: "Below the headlines, into the evidence.",
   description:
     "A science journal for claims that move faster than the evidence. We read the studies so you can decide with more than a caption.",
 };
 
 export const nav = [
-  { href: "/", label: "Home" },
-  { href: "/articles", label: "Articles" },
-  { href: "/topics", label: "Topics" },
+  { href: "/issues/current", label: "Current issue" },
+  { href: "/archive", label: "Archive" },
   { href: "/about", label: "About" },
+  { href: "/subscribe", label: "Newsletter" },
 ];
 
 export function slugify(value: string) {

@@ -10,7 +10,7 @@ export function Container({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[1720px] px-5 sm:px-8 lg:px-12 xl:px-16",
+        "mx-auto w-full max-w-[1160px] px-5 sm:px-8 lg:px-12",
         className,
       )}
     >
@@ -29,7 +29,7 @@ export function Kicker({
   return (
     <p
       className={cn(
-        "text-[11px] font-medium tracking-[0.22em] text-brand uppercase",
+        "journal-kicker text-[11px] font-medium tracking-[0.22em] text-brand uppercase",
         className,
       )}
     >
