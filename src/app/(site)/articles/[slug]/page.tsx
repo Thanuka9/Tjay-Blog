@@ -9,125 +9,209 @@ import { ShareActions } from "@/components/site/ShareActions";
 import { SubscribeForm } from "@/components/site/SubscribeForm";
 import { CITATIONS_BY_SLUG } from "@/lib/citations";
 import { extractHeadings } from "@/lib/headings";
-import { formatDate } from "@/lib/site";
-import { getPostBySlug, getTopic, listPublishedPosts } from "@/lib/store";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+import { formatDate, publicationUrl, site } from "@/lib/site";
+import {
+  getPostBySlug,
+  listPublishedIssues,
+  listPublishedPosts,
+} from "@/lib/store";
+import { issuePath, journalCitations } from "@/lib/issues";
+type Props = { params: Promise<{ slug: string }> };
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post || post.status !== "published") return {};
+  const title = post.seoTitle || post.title;
+  const description = post.seoDescription || post.excerpt;
   return {
-    title: post.seoTitle ?? post.title,
-    description: post.seoDescription ?? post.excerpt,
+    title,
+    description,
+    authors: [{ name: post.author }],
+    alternates: { canonical: `/articles/${post.slug}` },
+    openGraph: {
+      type: "article",
+      siteName: site.name,
+      title,
+      description,
+      url: `/articles/${post.slug}`,
+      publishedTime: post.publishedAt || undefined,
+      modifiedTime: post.updatedAt,
+      authors: [post.author],
+      images: ["/opengraph-image"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/opengraph-image"],
+    },
   };
 }
-
-export default async function ArticlePage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
-  if (!post || post.status !== "published") notFound();
-  const topic = await getTopic(post.topic);
-  const citations = CITATIONS_BY_SLUG[post.slug] ?? [];
+  const original = await getPostBySlug(slug);
+  if (!original || original.status !== "published") notFound();
+  const issues = await listPublishedIssues();
+  const issue = issues.find((issue) =>
+    issue.posts.some((post) => post.id === original.id),
+  );
+  const post = issue?.posts.find((post) => post.id === original.id) || original;
+  const references = CITATIONS_BY_SLUG[slug] || [];
   const headings = extractHeadings(post.content);
-  const related = (await listPublishedPosts())
-    .filter((item) => item.id !== post.id && item.topic === post.topic)
-    .slice(0, 4);
-
+  const citations = journalCitations(post, issue);
+  const related = issue
+    ? issue.posts.filter((item) => item.id !== post.id)
+    : (await listPublishedPosts())
+        .filter((item) => item.id !== post.id && item.topic === post.topic)
+        .slice(0, 3);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    identifier: post.articleCode,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+    author: {
+      "@type": post.author === site.name ? "Organization" : "Person",
+      name: post.author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: site.name,
+      url: publicationUrl(),
+    },
+    mainEntityOfPage: `${publicationUrl()}/articles/${slug}`,
+    isPartOf: issue
+      ? {
+          "@type": "PublicationIssue",
+          issueNumber: issue.number,
+          isPartOf: {
+            "@type": "PublicationVolume",
+            volumeNumber: issue.volume,
+          },
+        }
+      : undefined,
+    citation: references.map((ref) => ref.url),
+  };
   return (
     <article>
-      <Container className="pt-10 pb-8 sm:pt-14">
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-12">
-          <div className="lg:col-span-8">
-            {topic ? (
-              <Kicker>
-                <Link href={`/topics/${topic.slug}`}>{topic.name}</Link>
-              </Kicker>
-            ) : null}
-            <h1 className="mt-3 font-serif text-4xl leading-[1.12] tracking-tight sm:text-5xl lg:text-[3.15rem]">
-              {post.title}
-            </h1>
-            <p className="mt-5 text-lg leading-8 text-muted-foreground">
-              {post.excerpt}
-            </p>
-          </div>
-          <div className="flex flex-col justify-end gap-4 lg:col-span-4 lg:items-end">
-            <p className="text-sm text-muted-foreground lg:text-right">
-              {post.author}
-              <br />
-              {formatDate(post.publishedAt)} · {post.readingTime} min read
-            </p>
-            <ShareActions />
-          </div>
-        </div>
-
-        {post.coverImage ? (
-          <figure className="mt-10">
-            <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-muted">
-              <CoverMedia
-                src={post.coverImage}
-                alt={post.title}
-                className="object-cover object-center"
-                sizes="(min-width: 1720px) 1720px, 100vw"
-                priority
-              />
-            </div>
-          </figure>
-        ) : null}
-
-        <div className="mt-12 flex flex-col gap-12 lg:flex-row lg:items-start lg:justify-between lg:gap-16 xl:gap-24">
-          <div className="min-w-0 w-full max-w-[46rem]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <Container className="py-10 sm:py-14">
+        {issue && (
+          <Link
+            href={issuePath(issue)}
+            className="mb-6 inline-block text-sm text-muted-foreground"
+          >
+            Vol. {issue.volume} | No. {issue.number} · {issue.label}
+          </Link>
+        )}
+        <div className="journal-article-grid">
+          <div>
+            <header className="journal-article-heading">
+              <Kicker>{post.articleType || "Research Article"}</Kicker>
+              <h1>{post.title}</h1>
+              <p className="article-deck">{post.excerpt}</p>
+              <p className="article-byline">
+                {post.author}
+                <br />
+                Published {formatDate(post.publishedAt)}
+                {post.articleCode ? ` · ${post.articleCode}` : ""} ·{" "}
+                {post.readingTime} min read
+              </p>
+              <ShareActions slug={post.slug} citations={citations} />
+              {issue && (
+                <a
+                  className="mt-4 inline-block text-xs underline print:hidden"
+                  href={`${issuePath(issue)}/download`}
+                  download
+                >
+                  Download entire issue (PDF)
+                </a>
+              )}
+            </header>
+            {post.coverImage && (
+              <figure className="mb-10">
+                <div className="relative aspect-[16/9] overflow-hidden bg-muted">
+                  <CoverMedia
+                    src={post.coverImage}
+                    alt={post.title}
+                    className="object-cover"
+                    sizes="(min-width: 1024px) 700px, 100vw"
+                    priority
+                  />
+                </div>
+              </figure>
+            )}
             <ArticleBody content={post.content} />
-            <SourceList citations={citations} />
-            {post.tags.length > 0 ? (
-              <div className="mt-10 flex flex-wrap gap-2">
+            <SourceList citations={references} />
+            <section
+              id="cite-this-article"
+              className="mt-12 border-t border-border pt-6"
+            >
+              <Kicker>Cite this article</Kicker>
+              <p className="mt-4 text-sm leading-7">{citations.vancouver}</p>
+              <p className="mt-5 text-xs leading-6 text-muted-foreground">
+                This article explains published research for a general audience.
+                It is not medical advice. Articles licensed under CC BY-NC-ND
+                4.0.
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Last updated {formatDate(post.updatedAt)}.
+              </p>
+            </section>
+            {post.tags.length > 0 && (
+              <div className="mt-8 flex flex-wrap gap-2">
                 {post.tags.map((tag) => (
-                  <span
+                  <Link
                     key={tag}
-                    className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                    href={`/search?q=${encodeURIComponent(tag)}`}
+                    className="border border-border px-3 py-1 text-xs text-muted-foreground"
                   >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
-
-          <aside className="hidden w-full shrink-0 print:hidden lg:block lg:w-[22rem] xl:w-[24rem]">
-            <div className="sticky top-28 space-y-8">
-              {headings.length > 0 ? (
+          <aside className="journal-article-aside print:hidden">
+            <div className="space-y-8 lg:sticky lg:top-8">
+              {headings.length > 0 && (
                 <section>
-                  <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-                    In this piece
-                  </p>
-                  <ol className="mt-4 space-y-2.5 border-l border-border">
+                  <Kicker>In this article</Kicker>
+                  <ol className="mt-4 space-y-3 border-l border-border">
                     {headings.map((heading) => (
                       <li key={heading.id}>
                         <a
                           href={`#${heading.id}`}
-                          className="block py-0.5 pl-4 text-sm leading-6 text-muted-foreground hover:text-foreground"
+                          className="block pl-4 text-sm leading-6 text-muted-foreground hover:text-foreground"
                         >
                           {heading.text}
                         </a>
                       </li>
                     ))}
+                    <li>
+                      <a
+                        href="#cite-this-article"
+                        className="block pl-4 text-sm"
+                      >
+                        Cite this article
+                      </a>
+                    </li>
                   </ol>
                 </section>
-              ) : null}
-
-              {related.length > 0 ? (
-                <section className="print:hidden">
-                  <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-                    More in {topic?.name}
-                  </p>
-                  <ul className="mt-4 space-y-3">
+              )}
+              {related.length > 0 && (
+                <section>
+                  <Kicker>
+                    {issue ? "Also in this issue" : "Related articles"}
+                  </Kicker>
+                  <ul className="mt-4 space-y-4">
                     {related.map((item) => (
                       <li key={item.id}>
                         <Link
@@ -140,32 +224,17 @@ export default async function ArticlePage({
                     ))}
                   </ul>
                 </section>
-              ) : null}
-
-              <section className="rounded-xl border border-border bg-muted/40 p-5 print:hidden">
-                <p className="font-serif text-xl">Stay with the evidence</p>
-                <p className="mt-2 mb-4 text-sm text-muted-foreground">
-                  The next pieces land here first.
+              )}
+              <section className="border-t border-border pt-6">
+                <p className="mb-5 font-serif text-xl">
+                  Get each article the day it’s published.
                 </p>
-                <SubscribeForm compact />
+                <SubscribeForm />
               </section>
             </div>
           </aside>
         </div>
       </Container>
-
-      <section className="mt-16 border-t border-border bg-muted/35 print:hidden lg:hidden">
-        <Container className="py-12">
-          <h2 className="font-serif text-3xl tracking-tight">
-            Stay with the evidence
-          </h2>
-          <p className="mt-2 mb-6 max-w-xl text-muted-foreground">
-            The next pieces on Kisspeptin, NAD+, and retatrutide will land here
-            first.
-          </p>
-          <SubscribeForm />
-        </Container>
-      </section>
     </article>
   );
 }

@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/site";
-import { getDashboardStats, listTopics } from "@/lib/store";
+import { getDashboardStats, listTopics, listIssueMeta } from "@/lib/store";
 
 export default async function AdminHomePage() {
-  const [stats, topics] = await Promise.all([
+  const [stats, topics, issues] = await Promise.all([
     getDashboardStats(),
     listTopics(),
+    listIssueMeta(),
   ]);
   const topicNames = Object.fromEntries(
     topics.map((topic) => [topic.slug, topic.name]),
@@ -32,12 +33,8 @@ export default async function AdminHomePage() {
         <Stat label="Drafts" value={stats.drafts} />
         <Stat label="Subscribers" value={stats.subscribers} />
         <Stat
-          label="Home slides"
-          value={
-            stats.home.source === "latest"
-              ? "Latest 5"
-              : `${stats.home.postIds.length}/5`
-          }
+          label="Published issues"
+          value={issues.filter((issue) => issue.status === "published").length}
         />
       </div>
 
@@ -45,13 +42,18 @@ export default async function AdminHomePage() {
         <section className="rounded-xl border border-border xl:col-span-8">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="font-serif text-xl">Recent posts</h2>
-            <Link href="/admin/posts" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/admin/posts"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               All posts
             </Link>
           </div>
           <ul>
             {stats.recent.length === 0 ? (
-              <li className="px-5 py-8 text-sm text-muted-foreground">No posts yet.</li>
+              <li className="px-5 py-8 text-sm text-muted-foreground">
+                No posts yet.
+              </li>
             ) : (
               stats.recent.map((post) => (
                 <li
@@ -68,7 +70,11 @@ export default async function AdminHomePage() {
                     {topicNames[post.topic] ?? post.topic}
                   </span>
                   <span className="col-span-3 sm:col-span-2">
-                    <Badge variant={post.status === "published" ? "default" : "secondary"}>
+                    <Badge
+                      variant={
+                        post.status === "published" ? "default" : "secondary"
+                      }
+                    >
                       {post.status}
                     </Badge>
                   </span>
@@ -82,14 +88,13 @@ export default async function AdminHomePage() {
         </section>
 
         <section className="rounded-xl border border-border p-5 xl:col-span-4">
-          <h2 className="font-serif text-xl">Home slideshow</h2>
+          <h2 className="font-serif text-xl">Journal issues</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {stats.home.source === "latest"
-              ? "Showing the five newest published pieces."
-              : "Showing hand-picked slides."}
+            Arrange articles, add a cover and editor’s letter, and publish the
+            next monthly issue. The latest published issue leads the homepage.
           </p>
           <Button asChild size="sm" className="mt-6">
-            <Link href="/admin/home">Choose articles</Link>
+            <Link href="/admin/issues">Manage issues</Link>
           </Button>
         </section>
       </div>

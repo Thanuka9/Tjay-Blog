@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/artifacts/journal-review/
 
 # next.js
 /.next/

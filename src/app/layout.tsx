@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { Suspense } from "react";
 import { AppToaster } from "@/components/AppToaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { site } from "@/lib/site";
+import { site, publicationUrl } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,11 +23,25 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(publicationUrl()),
   title: {
     default: `${site.name} — ${site.tagline}`,
     template: `%s | ${site.name}`,
   },
   description: site.description,
+  openGraph: {
+    type: "website",
+    siteName: site.name,
+    title: site.name,
+    description: site.description,
+    images: ["/opengraph-image"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: site.name,
+    description: site.description,
+    images: ["/opengraph-image"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

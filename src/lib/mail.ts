@@ -17,7 +17,10 @@ export function siteUrl() {
 }
 
 function mailFrom() {
-  return process.env.MAIL_FROM ?? "The Assay <onboarding@resend.dev>";
+  return (process.env.MAIL_FROM ?? "The Abyss <onboarding@resend.dev>").replace(
+    /^The Assay(?=\s*<)/,
+    site.name,
+  );
 }
 
 function articleUrl(slug: string) {
@@ -38,23 +41,24 @@ function escapeHtml(value: string) {
 
 function articleListHtml(posts: PostMeta[]) {
   if (posts.length === 0) {
-    return `<p style="color:#666;line-height:1.6">New pieces will land here as soon as they are published.</p>`;
+    return `<p style="color:#4B5365;line-height:1.6">New pieces will land here as soon as they are published.</p>`;
   }
   return posts
     .map(
       (post) => `
         <p style="margin:0 0 18px">
-          <a href="${articleUrl(post.slug)}" style="color:#1f5c4e;font-size:18px;text-decoration:none;font-family:Georgia,serif">
+          <a href="${articleUrl(post.slug)}" style="color:#2C797C;font-size:18px;text-decoration:none;font-family:Georgia,serif">
             ${escapeHtml(post.title)}
           </a><br />
-          <span style="color:#666;font-size:14px;line-height:1.6">${escapeHtml(post.excerpt)}</span>
+          <span style="color:#4B5365;font-size:14px;line-height:1.6">${escapeHtml(post.excerpt)}</span>
         </p>`,
     )
     .join("");
 }
 
 function articleListText(posts: PostMeta[]) {
-  if (posts.length === 0) return "New pieces will land here as soon as they are published.";
+  if (posts.length === 0)
+    return "New pieces will land here as soon as they are published.";
   return posts
     .map((post) => `${post.title}\n${articleUrl(post.slug)}\n${post.excerpt}`)
     .join("\n\n");
@@ -62,14 +66,14 @@ function articleListText(posts: PostMeta[]) {
 
 function wrapEmail(bodyHtml: string, token: string) {
   return `<!doctype html>
-<html><body style="margin:0;padding:24px;background:#f6f4f1;font-family:system-ui,sans-serif;color:#222">
-  <div style="max-width:560px;margin:0 auto;background:#fff;padding:32px;border:1px solid #e8e2d8">
+<html><body style="margin:0;padding:24px;background:#F5F0E6;font-family:system-ui,sans-serif;color:#14203A">
+  <div style="max-width:560px;margin:0 auto;background:#fff;padding:32px;border:1px solid #D8D2C5">
     <p style="font-family:Georgia,serif;font-size:22px;margin:0 0 8px">${escapeHtml(site.name)}</p>
-    <p style="color:#666;font-size:13px;margin:0 0 24px">${escapeHtml(site.tagline)}</p>
+    <p style="color:#4B5365;font-size:13px;margin:0 0 24px">${escapeHtml(site.tagline)}</p>
     ${bodyHtml}
-    <p style="margin-top:32px;font-size:12px;color:#888">
+    <p style="margin-top:32px;font-size:12px;color:#4B5365">
       You are receiving this because you subscribed to ${escapeHtml(site.name)}.
-      <a href="${unsubscribeUrl(token)}" style="color:#888">Unsubscribe</a>
+      <a href="${unsubscribeUrl(token)}" style="color:#4B5365">Unsubscribe</a>
     </p>
   </div>
 </body></html>`;
@@ -161,12 +165,15 @@ export async function sendWelcomeEmail(subscriber: Subscriber) {
   });
 }
 
-export async function sendNewArticleEmail(subscriber: Subscriber, post: PostMeta) {
+export async function sendNewArticleEmail(
+  subscriber: Subscriber,
+  post: PostMeta,
+) {
   const subject = `New from ${site.name}: ${post.title}`;
   const html = wrapEmail(
     `<p style="font-size:16px;line-height:1.7">A new piece just published.</p>
      ${articleListHtml([post])}
-     <p><a href="${articleUrl(post.slug)}" style="color:#1f5c4e">Read it on the site</a></p>`,
+     <p><a href="${articleUrl(post.slug)}" style="color:#2C797C">Read it on the site</a></p>`,
     subscriber.unsubscribeToken,
   );
   const text = `${post.title}\n${articleUrl(post.slug)}\n\n${post.excerpt}\n\nUnsubscribe: ${unsubscribeUrl(subscriber.unsubscribeToken)}`;
@@ -180,14 +187,17 @@ export async function sendNewArticleEmail(subscriber: Subscriber, post: PostMeta
 }
 
 export async function notifySubscribersOfNewArticle(post: PostMeta) {
-  const subscribers = (await listSubscribers()).filter((sub) => !sub.unsubscribedAt);
+  const subscribers = (await listSubscribers()).filter(
+    (sub) => !sub.unsubscribedAt,
+  );
   const results = await Promise.allSettled(
     subscribers.map((subscriber) => sendNewArticleEmail(subscriber, post)),
   );
   return {
     attempted: subscribers.length,
-    sent: results.filter((result) => result.status === "fulfilled" && result.value.sent)
-      .length,
+    sent: results.filter(
+      (result) => result.status === "fulfilled" && result.value.sent,
+    ).length,
   };
 }
 

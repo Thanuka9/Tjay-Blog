@@ -1,4 +1,25 @@
 export type PostStatus = "draft" | "published";
+export const ARTICLE_TYPES = [
+  "Evidence Check",
+  "Explainer",
+  "Deep Dive",
+  "Regulatory Watch",
+  "Research Article",
+] as const;
+export type ArticleType = (typeof ARTICLE_TYPES)[number];
+export type Issue = {
+  id: string;
+  volume: number;
+  number: number;
+  month: number;
+  year: number;
+  coverImage: string | null;
+  editorLetter: string;
+  editorName: string;
+  coverDescription: string;
+  fullIssuePdf: string | null;
+  status: PostStatus;
+};
 
 export type Topic = {
   slug: string;
@@ -7,7 +28,12 @@ export type Topic = {
   order?: number;
 };
 
-export type { ChartSpec, ChartType, ChartRow, ChartPalette } from "@/lib/charts";
+export type {
+  ChartSpec,
+  ChartType,
+  ChartRow,
+  ChartPalette,
+} from "@/lib/charts";
 
 export type PostMeta = {
   id: string;
@@ -26,6 +52,12 @@ export type PostMeta = {
   readingTime: number;
   seoTitle?: string;
   seoDescription?: string;
+  issueId?: string | null;
+  articleCode?: string;
+  articleType?: ArticleType;
+  sequence?: number;
+  articlePdf?: string | null;
+  citation?: string;
 };
 
 export type Post = PostMeta & {

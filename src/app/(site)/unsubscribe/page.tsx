@@ -22,7 +22,7 @@ export default async function UnsubscribePage({
       </h1>
       <p className="mt-4 max-w-xl text-muted-foreground">
         {ok
-          ? "You will not get further letters from The Assay. You can subscribe again any time."
+          ? "You will not get further letters from The Abyss. You can subscribe again any time."
           : "The unsubscribe link may be old or incomplete."}
       </p>
     </Container>

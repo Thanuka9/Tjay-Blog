@@ -15,17 +15,21 @@ export function SubscribeForm({ compact = false }: { compact?: boolean }) {
       className="flex w-full flex-col gap-2"
       onSubmit={async (event) => {
         event.preventDefault();
+        const element = event.currentTarget;
         setPending(true);
         setMessage(null);
         setError(null);
         const form = new FormData(event.currentTarget);
-        const result = await subscribeAction(form);
-        setPending(false);
-        if (result.ok) {
-          setMessage(result.message);
-          event.currentTarget.reset();
-        } else {
-          setError(result.message);
+        try {
+          const result = await subscribeAction(form);
+          if (result.ok) {
+            setMessage(result.message);
+            element.reset();
+          } else setError(result.message);
+        } catch {
+          setError("Could not subscribe. Please try again.");
+        } finally {
+          setPending(false);
         }
       }}
     >
@@ -38,7 +42,11 @@ export function SubscribeForm({ compact = false }: { compact?: boolean }) {
           aria-label="Email address"
           className={compact ? "h-10 min-w-0 flex-1" : "h-11"}
         />
-        <Button type="submit" disabled={pending} className={compact ? "h-10 rounded-full px-4" : "h-11 rounded-full"}>
+        <Button
+          type="submit"
+          disabled={pending}
+          className={compact ? "h-10 rounded-full px-4" : "h-11 rounded-full"}
+        >
           {pending ? "Joining…" : "Subscribe"}
         </Button>
       </div>

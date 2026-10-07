@@ -1,4 +1,10 @@
-import { getHomeSlides, getPost, listTopics } from "@/lib/store";
+import {
+  getPost,
+  listTopics,
+  listIssueMeta,
+  listPublishedIssues,
+} from "@/lib/store";
+import { articleIssueId } from "@/lib/issues";
 import { notFound } from "next/navigation";
 import { PostEditor } from "@/components/admin/PostEditor";
 
@@ -8,13 +14,16 @@ export default async function EditPostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [post, topics, slides] = await Promise.all([
+  const [post, topics, issues, publishedIssues] = await Promise.all([
     getPost(id),
     listTopics(),
-    getHomeSlides(),
+    listIssueMeta(),
+    listPublishedIssues(),
   ]);
   if (!post) notFound();
-  const slideshowIndex = slides.findIndex((slide) => slide.id === post.id);
+  const journalPost = publishedIssues
+    .flatMap((issue) => issue.posts)
+    .find((item) => item.id === post.id);
 
   return (
     <div className="space-y-6">
@@ -25,7 +34,7 @@ export default async function EditPostPage({
       <PostEditor
         key={post.id}
         topics={topics}
-        slideshowSlot={slideshowIndex >= 0 ? slideshowIndex + 1 : null}
+        issues={issues}
         post={{
           id: post.id,
           title: post.title,
@@ -40,6 +49,14 @@ export default async function EditPostPage({
           featured: post.featured,
           seoTitle: post.seoTitle ?? "",
           seoDescription: post.seoDescription ?? "",
+          issueId: articleIssueId(post),
+          articleCode: post.articleCode || journalPost?.articleCode,
+          articleType:
+            post.articleType ||
+            (journalPost?.articleType as typeof post.articleType),
+          sequence: post.sequence || journalPost?.sequence,
+          articlePdf: post.articlePdf,
+          citation: post.citation,
         }}
       />
     </div>

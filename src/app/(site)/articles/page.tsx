@@ -5,13 +5,15 @@ import { listPublishedPosts } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "Articles",
-  description: "Every published piece from The Assay, newest first.",
+  description: "Every published piece from The Abyss, newest first.",
 };
 
 export default async function ArticlesPage() {
   const posts = await listPublishedPosts();
   const featured = posts.find((post) => post.featured);
-  const rest = featured ? posts.filter((post) => post.id !== featured.id) : posts;
+  const rest = featured
+    ? posts.filter((post) => post.id !== featured.id)
+    : posts;
 
   return (
     <Container className="py-12 sm:py-16">

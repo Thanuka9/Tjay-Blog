@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ARTICLE_TYPES } from "@/lib/types";
 import {
   clearSessionCookie,
   isValidPassword,
@@ -19,6 +20,7 @@ import {
   saveHomeSettings,
   savePost,
   saveTopic,
+  saveIssue,
 } from "@/lib/store";
 
 const postSchema = z.object({
@@ -35,6 +37,24 @@ const postSchema = z.object({
   featured: z.enum(["true", "false"]).optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
+  issueId: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .nullable()
+    .optional(),
+  articleCode: z
+    .string()
+    .regex(/^AB-[A-Z0-9-]+$/, "Use an article number such as AB-0101")
+    .optional(),
+  articleType: z.enum(ARTICLE_TYPES).optional(),
+  sequence: z.coerce.number().int().min(1).max(999).optional(),
+  articlePdf: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith("https://"), "PDF links must use HTTPS")
+    .nullable()
+    .optional(),
+  citation: z.string().optional(),
 });
 
 export async function loginAction(formData: FormData) {
@@ -68,6 +88,14 @@ export async function savePostAction(formData: FormData) {
     featured: formData.get("featured"),
     seoTitle: formData.get("seoTitle") || undefined,
     seoDescription: formData.get("seoDescription") || undefined,
+    issueId: formData.has("issueId")
+      ? String(formData.get("issueId") || "") || null
+      : undefined,
+    articleCode: formData.get("articleCode") || undefined,
+    articleType: formData.get("articleType") || undefined,
+    sequence: formData.get("sequence") || undefined,
+    articlePdf: formData.get("articlePdf") || null,
+    citation: formData.get("citation") || undefined,
   });
 
   if (!parsed.success) {
@@ -135,7 +163,8 @@ export async function deletePostAction(formData: FormData) {
   } catch (error) {
     return {
       ok: false as const,
-      message: error instanceof Error ? error.message : "Could not delete post.",
+      message:
+        error instanceof Error ? error.message : "Could not delete post.",
     };
   }
 }
@@ -197,7 +226,8 @@ export async function deleteTopicAction(formData: FormData) {
   } catch (error) {
     return {
       ok: false as const,
-      message: error instanceof Error ? error.message : "Could not delete topic.",
+      message:
+        error instanceof Error ? error.message : "Could not delete topic.",
     };
   }
 }
@@ -216,7 +246,69 @@ export async function sendDigestAction() {
   } catch (error) {
     return {
       ok: false as const,
-      message: error instanceof Error ? error.message : "Could not send digest.",
+      message:
+        error instanceof Error ? error.message : "Could not send digest.",
+    };
+  }
+}
+
+const issueSchema = z.object({
+  id: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  volume: z.coerce.number().int().min(1).max(999),
+  number: z.coerce.number().int().min(1).max(99),
+  month: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2000).max(2200),
+  coverImage: z.string().nullable(),
+  editorLetter: z.string().max(20000),
+  editorName: z.string().min(2),
+  coverDescription: z.string().max(5000),
+  fullIssuePdf: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith("https://"), "PDF links must use HTTPS")
+    .nullable(),
+  status: z.enum(["draft", "published"]),
+});
+
+export async function saveIssueAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = issueSchema.safeParse({
+    id: formData.get("id"),
+    volume: formData.get("volume"),
+    number: formData.get("number"),
+    month: formData.get("month"),
+    year: formData.get("year"),
+    coverImage: String(formData.get("coverImage") || "") || null,
+    editorLetter: String(formData.get("editorLetter") || ""),
+    editorName: formData.get("editorName"),
+    coverDescription: String(formData.get("coverDescription") || ""),
+    fullIssuePdf: String(formData.get("fullIssuePdf") || "") || null,
+    status: formData.get("status"),
+  });
+  if (!parsed.success)
+    return {
+      ok: false as const,
+      message: parsed.error.issues[0]?.message || "Invalid issue",
+    };
+  if (
+    parsed.data.id !==
+    `${parsed.data.year}-${String(parsed.data.month).padStart(2, "0")}`
+  )
+    return {
+      ok: false as const,
+      message: "The issue month and year must match its address.",
+    };
+  try {
+    const postIds = formData.getAll("postIds").map(String);
+    await saveIssue(parsed.data, postIds);
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/issues");
+    revalidatePath("/admin/posts");
+    return { ok: true as const, id: parsed.data.id };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: error instanceof Error ? error.message : "Could not save issue",
     };
   }
 }

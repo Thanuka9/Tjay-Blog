@@ -7,7 +7,7 @@ import { searchPosts } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "Search",
-  description: "Search The Assay for a compound, a study, or a claim.",
+  description: "Search The Abyss for a compound, a study, or a claim.",
 };
 
 export default async function SearchPage({
