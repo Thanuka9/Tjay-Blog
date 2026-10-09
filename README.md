@@ -45,8 +45,10 @@ Download a journal at `/issues/YYYY/MM/download` or an article at `/articles/SLU
 
 Issue records live in the private Blob store at `tjay/state/issues.json`. Use `BLOB_PRIVATE_READ_WRITE_TOKEN` for publication data and `BLOB_PUBLIC_READ_WRITE_TOKEN` for uploaded images. Set `SITE_URL=https://theabyssos.com` in production and optionally `EDITORIAL_EMAIL` to show an editorial contact on the Corrections page. No ISSN is invented or assigned by the app.
 
-Validation scripts: `scripts/verify-journal-model.ts` checks issue membership, draft visibility, reading order, and citations; `scripts/verify-journal.py` checks a running journal's palette, routes, citation dialog, mobile layout, and PDF contents. The browser script requires Python Playwright, PyMuPDF, and Microsoft Edge, and defaults to `http://localhost:3100` (override with `JOURNAL_TEST_URL`).
+Validation scripts: `scripts/verify-journal-model.ts` checks issue membership, draft visibility, reading order, and citations; `scripts/verify-journal.py` checks a running journal's palette, routes, article actions, mobile layout, and PDF contents. The browser script requires Python Playwright, PyMuPDF, and Microsoft Edge, and defaults to `http://localhost:3100` (override with `JOURNAL_TEST_URL`).
 
 ## Publication design
 
 The public site follows the supplied Home, About, Editorial Standards, Issue 01, and Cover 01 references. The logo, insulin crystal artwork, and IBM Plex Sans / Newsreader fonts are bundled locally. First-issue artwork is used when no custom cover is set; uploaded issue covers still take precedence. The full-size cover is available at `/issues/YYYY/MM/cover`. Social icons are omitted. Issue dates, articles, and downloads continue to use the published store records.
+
+The revised article template uses the supplied type and colour scale, a four-part At a glance summary, editable references, and figure captions stored as Markdown image titles. Summaries and references are stored with each post and shared by web previews and PDF downloads. PDFs embed static instances of Newsreader and IBM Plex Sans. Issue records may also list upcoming articles, which appear on covers and contents without publishing an unfinished article. The Contact page is available at `/contact`; footer, article and PDF license notices have been removed.

@@ -380,6 +380,8 @@ export async function savePost(
     articlePdf: input.articlePdf,
     citation: input.citation,
     atAGlance: input.atAGlance === undefined ? existing?.atAGlance : input.atAGlance,
+    abstract: input.abstract === undefined ? existing?.abstract : input.abstract,
+    references: input.references === undefined ? existing?.references : input.references,
     evidenceLadder: input.evidenceLadder === undefined ? existing?.evidenceLadder : input.evidenceLadder,
     readingTime: readingTimeFrom(input.content),
     createdAt: existing?.createdAt ?? input.createdAt ?? now,

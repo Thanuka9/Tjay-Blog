@@ -58,6 +58,8 @@ export default async function EditPostPage({
           articlePdf: post.articlePdf,
           citation: post.citation,
           atAGlance: post.atAGlance,
+          abstract: post.abstract,
+          references: post.references,
           evidenceLadder: post.evidenceLadder,
         }}
       />

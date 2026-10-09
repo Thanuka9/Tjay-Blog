@@ -66,6 +66,8 @@ const postSchema = z.object({
     caption: z.string().trim().min(1, "Write an evidence caption").max(1600),
     afterHeading: z.string().max(300).optional(),
   }).nullable().optional(),
+  abstract: z.array(z.object({ label: z.string().trim().min(1).max(160), text: z.string().trim().min(1).max(3000) })).max(6).nullable().optional(),
+  references: z.array(z.object({ id: z.number().int().positive(), title: z.string().trim().min(1), detail: z.string(), url: z.union([z.literal(""), z.string().url().regex(/^https?:\/\//)]) })).max(100).optional(),
 });
 
 function formJson(form: FormData, name: string): unknown {
@@ -113,6 +115,8 @@ export async function savePostAction(formData: FormData) {
     articlePdf: formData.get("articlePdf") || null,
     citation: formData.get("citation") || undefined,
     atAGlance: formJson(formData, "atAGlance"),
+    abstract: formJson(formData, "abstract"),
+    references: formJson(formData, "references"),
     evidenceLadder: formJson(formData, "evidenceLadder"),
   });
 
@@ -280,6 +284,7 @@ const issueSchema = z.object({
   editorLetter: z.string().max(20000),
   editorName: z.string().min(2),
   coverDescription: z.string().max(5000),
+  upcomingArticles: z.array(z.object({ title: z.string().trim().min(1), excerpt: z.string(), articleType: z.enum(ARTICLE_TYPES), articleCode: z.string().regex(/^AB-[A-Z0-9-]+$/) })).max(10).optional(),
   fullIssuePdf: z
     .string()
     .url()
@@ -300,6 +305,7 @@ export async function saveIssueAction(formData: FormData) {
     editorLetter: String(formData.get("editorLetter") || ""),
     editorName: formData.get("editorName"),
     coverDescription: String(formData.get("coverDescription") || ""),
+    upcomingArticles: formJson(formData, "upcomingArticles"),
     fullIssuePdf: String(formData.get("fullIssuePdf") || "") || null,
     status: formData.get("status"),
   });

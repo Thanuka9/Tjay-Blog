@@ -1,12 +1,13 @@
-import { EVIDENCE_STAGES, type AtAGlance, type EvidenceLadder as Ladder } from "@/lib/types";
+import { EVIDENCE_STAGES, type AbstractSection, type AtAGlance, type EvidenceLadder as Ladder } from "@/lib/types";
 
-export function ArticleAtAGlance({ summary }: { summary?: AtAGlance | null }) {
-  if (!summary) return null;
-  return <section className="article-glance" aria-label="At a glance">
+export function ArticleAtAGlance({ summary, abstract }: { summary?: AtAGlance | null; abstract?: AbstractSection[] | null }) {
+  if (!summary && !abstract?.length) return null;
+  const sections = abstract?.length ? abstract : summary ? [{ label: "What we know", text: summary.known }, { label: "What we don’t know", text: summary.unknown }, { label: "What to watch", text: summary.watch }] : [];
+  return <section className={`article-glance${abstract?.length ? " article-abstract" : ""}`} aria-label="At a glance">
     <p className="journal-kicker uppercase">At a glance</p>
     <dl>
-      {[["What we know", summary.known], ["What we don’t know", summary.unknown], ["What to watch", summary.watch]].map(([label, body]) =>
-        <div key={label}><dt>{label}</dt><dd>{body}</dd></div>)}
+      {sections.map((section, index) =>
+        <div key={index}><dt>{section.label}</dt><dd>{section.text}</dd></div>)}
     </dl>
   </section>;
 }

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { articleIssueId } from "@/lib/issues";
-import type { Issue, PostMeta } from "@/lib/types";
+import { ARTICLE_TYPES, type Issue, type PostMeta } from "@/lib/types";
 
 export function IssueEditor({
   issue,
@@ -22,6 +22,7 @@ export function IssueEditor({
   const [month, setMonth] = useState(issue.month);
   const [year, setYear] = useState(issue.year);
   const [cover, setCover] = useState(issue.coverImage || "");
+  const [upcoming, setUpcoming] = useState(issue.upcomingArticles || []);
   const [selected, setSelected] = useState(
     posts
       .filter((post) => articleIssueId(post) === issue.id)
@@ -71,6 +72,23 @@ export function IssueEditor({
     >
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="coverImage" value={cover} />
+      <input type="hidden" name="upcomingArticles" value={JSON.stringify(upcoming)} />
+      <details className="border border-border p-4">
+        <summary className="cursor-pointer text-sm font-medium">Upcoming articles ({upcoming.length})</summary>
+        <div className="mt-4 space-y-4">
+          {upcoming.map((item, index) => <fieldset key={index} className="space-y-2 border-b border-border pb-4">
+            <legend className="text-sm">Upcoming article {index + 1}</legend>
+            {([ ["title", "Title"], ["excerpt", "Excerpt"], ["articleCode", "Article number"] ] as const).map(([key, label]) => <div key={key}>
+              <Label htmlFor={`upcoming-${index}-${key}`}>{label}</Label>
+              <Input id={`upcoming-${index}-${key}`} value={item[key]} required={key !== "excerpt"} onChange={(event) => setUpcoming(upcoming.map((entry, i) => i === index ? { ...entry, [key]: event.target.value } : entry))} />
+            </div>)}
+            <Label htmlFor={`upcoming-${index}-type`}>Article type</Label>
+            <select id={`upcoming-${index}-type`} value={item.articleType} onChange={(event) => setUpcoming(upcoming.map((entry, i) => i === index ? { ...entry, articleType: event.target.value as typeof item.articleType } : entry))}>{ARTICLE_TYPES.map((type) => <option key={type}>{type}</option>)}</select>
+            <Button type="button" variant="outline" onClick={() => setUpcoming(upcoming.filter((_, i) => i !== index))}>Remove upcoming article</Button>
+          </fieldset>)}
+          <Button type="button" variant="outline" onClick={() => setUpcoming([...upcoming, { title: "", excerpt: "", articleCode: "", articleType: "Explainer" }])}>Add upcoming article</Button>
+        </div>
+      </details>
       {selected.map((postId) => (
         <input key={postId} type="hidden" name="postIds" value={postId} />
       ))}

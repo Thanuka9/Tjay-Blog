@@ -9,7 +9,7 @@ import "./globals.css";
 const geistSans = localFont({
   src: "../../public/fonts/ibm-plex-sans-latin.woff2",
   variable: "--font-geist-sans",
-  weight: "100 900",
+  weight: "100 700",
   display: "swap",
 });
 

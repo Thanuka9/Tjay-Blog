@@ -8,7 +8,7 @@ import ts from "typescript";
 const require = createRequire(import.meta.url);
 const output = path.resolve("artifacts/journal-review/model");
 mkdirSync(output, { recursive: true });
-for (const name of ["site", "charts", "content", "headings", "article-markdown", "article-features", "issues"]) {
+for (const name of ["site", "charts", "content", "headings", "article-markdown", "article-features", "markdown-images", "issues"]) {
   const source = readFileSync(`src/lib/${name}.ts`, "utf8").replace(/"@\/lib\/([^"]+)"/g, '"./$1.cjs"');
   writeFileSync(path.join(output, `${name}.cjs`), ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
@@ -18,6 +18,12 @@ const { extractHeadings } = require(path.join(output, "headings.cjs"));
 const { splitContent } = require(path.join(output, "content.cjs"));
 const { parseChartRows, normalizeChartSpec } = require(path.join(output, "charts.cjs"));
 const { remarkArticle } = require(path.join(output, "article-markdown.cjs"));
+const { parseBodyImages, removeBodyImage } = require(path.join(output, "markdown-images.cjs"));
+assert.deepEqual(parseBodyImages('![Peptide diagram](/diagram.png "A full figure caption.")\n\n```md\n![Example](/example.png)\n```'), [{alt: "Peptide diagram", src: "/diagram.png"}], "Captions must not become part of an image URL, and code samples must remain code");
+const codeExample = '```md\n![Example](/example.png)\n```';
+const captionedImage = `${codeExample}\n\n![Diagram](/diagram.png "A caption (with parentheses).")\n\nFollowing paragraph.`;
+assert.equal(removeBodyImage(captionedImage, 0), `${codeExample}\n\nFollowing paragraph.`, "Removing a figure must preserve code examples and remove the entire caption");
+assert.equal(removeBodyImage(captionedImage, 1), captionedImage, "An absent figure must leave the content intact");
 const { articleFeatures, evidencePlacement } = require(path.join(output, "article-features.cjs"));
 const legacy = articleFeatures({ slug: "are-peptides-the-real-future-of-longevity" });
 assert.ok(legacy.atAGlance.known && legacy.evidenceLadder.subject === "BPC-157");

@@ -1,4 +1,6 @@
+import type { Citation } from "@/lib/citations";
 export type PostStatus = "draft" | "published";
+export type AbstractSection = { label: string; text: string };
 export const ARTICLE_TYPES = [
   "Evidence Check",
   "Explainer",
@@ -27,6 +29,7 @@ export type Issue = {
   coverDescription: string;
   fullIssuePdf: string | null;
   status: PostStatus;
+  upcomingArticles?: { title: string; excerpt: string; articleType: ArticleType; articleCode: string }[];
 };
 
 export type Topic = {
@@ -67,6 +70,8 @@ export type PostMeta = {
   articlePdf?: string | null;
   citation?: string;
   atAGlance?: AtAGlance | null;
+  abstract?: AbstractSection[] | null;
+  references?: Citation[];
   evidenceLadder?: EvidenceLadder | null;
 };
 

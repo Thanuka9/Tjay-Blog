@@ -46,9 +46,9 @@ const components: Components = {
       {children}
     </blockquote>
   ),
-  img: ({ src, alt }) =>
+  img: ({ src, alt, title }) =>
     typeof src === "string" ? (
-      <figure className="my-10">
+      <figure className="article-figure">
         <span className="block overflow-hidden bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -59,9 +59,9 @@ const components: Components = {
             decoding="async"
           />
         </span>
-        {alt ? (
+        {title || alt ? (
           <figcaption className="mt-3 text-sm leading-6 text-muted-foreground">
-            {alt}
+            {title || alt}
           </figcaption>
         ) : null}
       </figure>

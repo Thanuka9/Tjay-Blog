@@ -20,6 +20,7 @@ type Node = {
   depth?: number;
   url?: string;
   alt?: string;
+  title?: string;
   ordered?: boolean;
   start?: number;
   identifier?: string;
@@ -139,6 +140,14 @@ export async function journalPdf(
     },
   });
   const chunks: Buffer[] = [];
+  for (const [name, file] of Object.entries({
+    "Journal-Serif": "newsreader-400.ttf",
+    "Journal-Serif-Medium": "newsreader-500.ttf",
+    "Journal-Serif-Italic": "newsreader-italic-400.ttf",
+    "Journal-Sans": "ibm-plex-sans-400.ttf",
+    "Journal-Sans-Medium": "ibm-plex-sans-500.ttf",
+    "Journal-Sans-Semibold": "ibm-plex-sans-600.ttf",
+  })) doc.registerFont(name, await readFile(path.join(process.cwd(), "public/fonts/pdf", file)));
   const completed = new Promise<Buffer>((resolve, reject) => {
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -160,10 +169,10 @@ export async function journalPdf(
   function room(height: number) {
     if (doc.y + height > doc.page.height - 70) doc.addPage();
   }
-  function text(value: string, size = 11, heading = false) {
+  function text(value: string, size = 11, heading = false, font?: string) {
     if (!value.trim()) return;
     doc
-      .font(heading ? "Times-Bold" : "Times-Roman")
+      .font(font || (size <= 10 ? heading ? "Journal-Sans-Semibold" : "Journal-Sans" : heading ? "Journal-Serif-Medium" : "Journal-Serif"))
       .fontSize(size)
       .fillColor(heading ? NAVY : INK)
       .text(clean(value), 54, doc.y, { width, lineGap: 4 });
@@ -196,7 +205,7 @@ export async function journalPdf(
     if (alt) text(alt, 9);
   }
   function table(rows: string[][]) {
-    doc.font("Times-Roman").fontSize(9).fillColor(INK);
+    doc.font("Journal-Sans").fontSize(9).fillColor(INK);
     doc.table({
       data: rows,
       maxWidth: width,
@@ -229,7 +238,7 @@ export async function journalPdf(
       case "paragraph":
         text(indent + inline(node));
         for (const img of imagesIn(node))
-          if (img.url) await image(img.url, img.alt || "");
+            if (img.url) await image(img.url, img.title || img.alt || "");
         break;
       case "list":
         for (const [index, child] of (node.children || []).entries()) {
@@ -259,7 +268,7 @@ export async function journalPdf(
         doc.moveDown();
         break;
       case "image":
-        if (node.url) await image(node.url, node.alt || "");
+        if (node.url) await image(node.url, node.title || node.alt || "");
         break;
       case "html":
         text((node.value || "").replace(/<[^>]+>/g, ""));
@@ -284,7 +293,7 @@ export async function journalPdf(
       const x = 54 + stepWidth * index;
       const selected = stage === ladder.stage;
       doc.rect(x, top + 94 - height, stepWidth - 4, height).fill(selected ? TEAL : "#D8E5EB");
-      doc.font("Times-Bold").fontSize(8).fillColor(INK).text(stage, x, top + 102, { width: stepWidth - 6 });
+      doc.font("Journal-Sans-Semibold").fontSize(8).fillColor(INK).text(stage, x, top + 102, { width: stepWidth - 6 });
       if (selected) doc.fontSize(8).fillColor(TEAL).text("Main evidence", x, top + 137, { width: stepWidth - 6 });
     });
     doc.x = 54;
@@ -294,7 +303,7 @@ export async function journalPdf(
   }
   if (issue && !contentsOnly && !articleOnly) {
     doc
-      .font("Helvetica")
+      .font("Journal-Sans")
       .fontSize(10)
       .fillColor(TEAL)
       .text("A SCIENCE JOURNAL FOR EVERYONE", 54, 60, {
@@ -328,6 +337,7 @@ export async function journalPdf(
     doc.y = y + 210;
     for (const post of posts)
       text(`${post.articleCode || ""}   ${post.title}`, 12, true);
+    for (const post of issue.upcomingArticles || []) text(`${post.articleCode}   ${post.title} · Upcoming`, 12, true);
     doc.addPage();
     heading("From the Editor", 24);
     text(
@@ -367,13 +377,20 @@ export async function journalPdf(
         text(`Vol. ${issue.volume} | No. ${issue.number} · ${issue.label}`, 10);
       text((post.articleType || "Research Article").toUpperCase(), 10, true);
       heading(post.title, 28);
-      text(post.excerpt, 13);
+      text(post.excerpt, 13, false, "Journal-Serif-Italic");
       text(
         `${post.author} · Published ${formatDate(post.publishedAt)}${post.articleCode ? ` · ${post.articleCode}` : ""} · ${post.readingTime} min read`,
         10,
       );
       const features = articleFeatures(post);
-      if (features.atAGlance) {
+      if (post.abstract?.length) {
+        heading("At a glance", 16);
+        for (const section of post.abstract) {
+          text(section.label, 10, true);
+          text(section.text, 10);
+        }
+      }
+      else if (features.atAGlance) {
         heading("At a glance", 16);
         for (const [label, body] of [["What we know", features.atAGlance.known], ["What we don’t know", features.atAGlance.unknown], ["What to watch", features.atAGlance.watch]]) {
           text(label, 10, true);
@@ -426,7 +443,7 @@ export async function journalPdf(
         }
       }
       if (features.evidenceLadder && placement.end) renderLadder(features.evidenceLadder);
-      const references = CITATIONS_BY_SLUG[post.slug] || [];
+      const references = post.references ?? CITATIONS_BY_SLUG[post.slug] ?? [];
       if (references.length) {
         heading("References", 21);
         for (const citation of references)
@@ -441,10 +458,6 @@ export async function journalPdf(
         "This article explains published research for a general audience. It is not medical advice.",
         9,
       );
-      text(
-        "Articles licensed under CC BY-NC-ND 4.0. https://creativecommons.org/licenses/by-nc-nd/4.0/",
-        9,
-      );
     }
   if (issue && !contentsOnly && !articleOnly) {
     doc.addPage();
@@ -453,10 +466,6 @@ export async function journalPdf(
     text(site.supportingDescription);
     text(site.tagline);
     text(`Volume ${issue.volume}, Number ${issue.number} · ${issue.label}`);
-    text(
-      "Articles licensed under Creative Commons Attribution–NonCommercial–NoDerivatives 4.0 (CC BY-NC-ND 4.0).\nhttps://creativecommons.org/licenses/by-nc-nd/4.0/",
-      10,
-    );
     text(
       "The website and generated PDFs share one article source. Subsequent downloads reflect editorial corrections. References are provided alongside each article.",
       10,
@@ -470,7 +479,7 @@ export async function journalPdf(
   for (let page = range.start; page < range.start + range.count; page++) {
     doc.switchToPage(page);
     doc
-      .font("Times-Roman")
+      .font("Journal-Sans")
       .fontSize(9)
       .fillColor("#4B5365")
       .text(

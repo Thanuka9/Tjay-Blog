@@ -20,6 +20,10 @@ export function IssueContents({ issue, compact = false }: { issue: JournalIssue;
           <p className="journal-entry-meta">{post.articleCode}{compact ? " · Published " : <br />}{formatDate(post.publishedAt)}</p>
         </article>
       ))}
+      {issue.upcomingArticles?.map((post) => <article key={post.articleCode} className="journal-entry journal-entry-upcoming">
+        <div className="journal-entry-body"><Kicker>{post.articleType}</Kicker><h3>{post.title}</h3>{compact && <p className="journal-entry-excerpt">{post.excerpt}</p>}</div>
+        <p className="journal-entry-meta">{post.articleCode} · Upcoming</p>
+      </article>)}
     </div>
   );
 }

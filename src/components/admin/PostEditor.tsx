@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { isImageFile } from "@/lib/image-files";
-import { parseBodyImages } from "@/lib/markdown-images";
+import { parseBodyImages, removeBodyImage } from "@/lib/markdown-images";
 import { slugify } from "@/lib/site";
 import {
   ARTICLE_TYPES,
@@ -49,6 +49,8 @@ type EditorPost = Pick<
   | "articlePdf"
   | "citation"
   | "atAGlance"
+  | "abstract"
+  | "references"
   | "evidenceLadder"
 > & {
   id: string;
@@ -82,7 +84,11 @@ export function PostEditor({
   const [slug, setSlug] = useState(post.slug);
   const [excerpt, setExcerpt] = useState(post.excerpt);
   const initialFeatures = articleFeatures(post);
-  const [summaryEnabled, setSummaryEnabled] = useState(Boolean(initialFeatures.atAGlance));
+  const [summaryEnabled, setSummaryEnabled] = useState(Boolean(initialFeatures.atAGlance || post.abstract?.length));
+  const [abstract, setAbstract] = useState(post.abstract || (initialFeatures.atAGlance ? [] : [
+    { label: "Background", text: "" }, { label: "Purpose", text: "" },
+    { label: "What the evidence shows", text: "" }, { label: "What this means for you", text: "" },
+  ]));
   const [summary, setSummary] = useState(initialFeatures.atAGlance || { known: "", unknown: "", watch: "" });
   const [ladderEnabled, setLadderEnabled] = useState(Boolean(initialFeatures.evidenceLadder));
   const [ladder, setLadder] = useState<EvidenceLadder>(initialFeatures.evidenceLadder || { subject: "", stage: "Cell and lab studies", caption: "", afterHeading: "" });
@@ -99,7 +105,7 @@ export function PostEditor({
   const [dragging, setDragging] = useState(false);
   const bodyImages = parseBodyImages(content);
   const charts = parseCharts(content);
-  const references = CITATIONS_BY_SLUG[slug] || [];
+  const [references, setReferences] = useState(post.references ?? CITATIONS_BY_SLUG[post.slug] ?? []);
 
   async function uploadFile(
     file: File,
@@ -237,7 +243,9 @@ export function PostEditor({
           value={featured ? "true" : "false"}
         />
         <input type="hidden" name="content" value={content} />
-        <input type="hidden" name="atAGlance" value={JSON.stringify(summaryEnabled ? summary : null)} />
+        <input type="hidden" name="atAGlance" value={JSON.stringify(summaryEnabled && !abstract.length ? summary : null)} />
+        <input type="hidden" name="abstract" value={JSON.stringify(summaryEnabled && abstract.length ? abstract : null)} />
+        <input type="hidden" name="references" value={JSON.stringify(references)} />
         <input type="hidden" name="evidenceLadder" value={JSON.stringify(ladderEnabled ? ladder : null)} />
 
         <div className="space-y-4">
@@ -261,7 +269,13 @@ export function PostEditor({
             <fieldset className="mt-4 space-y-3">
               <legend className="sr-only">At a glance</legend>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={summaryEnabled} onChange={(event) => setSummaryEnabled(event.target.checked)} />Show At a glance</label>
-              {summaryEnabled && ([ ["known", "What we know"], ["unknown", "What we don’t know"], ["watch", "What to watch"] ] as const).map(([key, label]) => <div key={key} className="space-y-2">
+              {summaryEnabled && abstract.length > 0 && abstract.map((section, index) => <div key={index} className="space-y-2">
+                <Label htmlFor={`abstract-label-${index}`}>Summary heading {index + 1}</Label>
+                <Input id={`abstract-label-${index}`} required maxLength={160} value={section.label} onChange={(event) => setAbstract(abstract.map((item, i) => i === index ? { ...item, label: event.target.value } : item))} />
+                <Label htmlFor={`abstract-text-${index}`}>{section.label || "Summary text"}</Label>
+                <Textarea id={`abstract-text-${index}`} required maxLength={3000} value={section.text} onChange={(event) => setAbstract(abstract.map((item, i) => i === index ? { ...item, text: event.target.value } : item))} />
+              </div>)}
+              {summaryEnabled && !abstract.length && ([ ["known", "What we know"], ["unknown", "What we don’t know"], ["watch", "What to watch"] ] as const).map(([key, label]) => <div key={key} className="space-y-2">
                 <Label htmlFor={`summary-${key}`}>{label}</Label>
                 <Textarea id={`summary-${key}`} value={summary[key]} maxLength={1200} required onChange={(event) => setSummary({ ...summary, [key]: event.target.value })} />
               </div>)}
@@ -286,6 +300,20 @@ export function PostEditor({
                 <p className="text-xs text-muted-foreground">Describe the evidence for this subject and its limitations. The ladder represents study stages, not a numerical score.</p>
               </>}
             </fieldset>
+          </details>
+          <details className="rounded-lg border border-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">References ({references.length})</summary>
+            <div className="mt-4 space-y-6">
+              {references.map((reference, index) => <fieldset key={reference.id} className="space-y-2 border-b border-border pb-4">
+                <legend className="mb-2 text-sm font-medium">Reference {reference.id}</legend>
+                {([ ["title", "Title"], ["detail", "Authors, journal and date"], ["url", "Source URL (optional)"] ] as const).map(([key, label]) => <div key={key} className="space-y-2">
+                  <Label htmlFor={`reference-${reference.id}-${key}`}>{label}</Label>
+                  <Input id={`reference-${reference.id}-${key}`} type={key === "url" ? "url" : "text"} required={key === "title"} value={reference[key]} onChange={(event) => setReferences(references.map((item, i) => i === index ? { ...item, [key]: event.target.value } : item))} />
+                </div>)}
+                <Button type="button" variant="outline" size="sm" onClick={() => setReferences(references.filter((item) => item.id !== reference.id))}>Remove reference {reference.id}</Button>
+              </fieldset>)}
+              <Button type="button" variant="outline" size="sm" onClick={() => setReferences([...references, { id: Math.max(0, ...references.map((item) => item.id)) + 1, title: "", detail: "", url: "" }])}>Add reference</Button>
+            </div>
           </details>
           <Tabs defaultValue="write">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -380,7 +408,7 @@ export function PostEditor({
                   <h1>{title || "Untitled article"}</h1>
                   {excerpt && <p className="article-deck">{excerpt}</p>}
                 </header>
-                <ArticleAtAGlance summary={summaryEnabled ? summary : null} />
+                <ArticleAtAGlance summary={summaryEnabled && !abstract.length ? summary : null} abstract={summaryEnabled ? abstract : null} />
                 <ArticleBody content={content || "*Nothing to preview yet.*"} citationIds={references.map((reference) => reference.id)} evidenceLadder={ladderEnabled ? ladder : null} />
                 <SourceList citations={references} />
               </div>
@@ -415,7 +443,7 @@ export function PostEditor({
                       className="h-7 w-full rounded-none text-destructive"
                       onClick={() => {
                         setContent((value) =>
-                          removeNthMatch(value, imagePattern(), index),
+                          removeBodyImage(value, index),
                         );
                         toast.success(
                           "Image removed. Save the post to keep this.",
@@ -726,7 +754,6 @@ export function PostEditor({
   );
 }
 
-const imagePattern = () => /!\[[^\]]*\]\([^)]+\)/g;
 const chartPattern = () => /:::chart\s*\n([\s\S]*?)\n:::/g;
 
 function parseCharts(markdown: string) {

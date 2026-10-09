@@ -46,7 +46,7 @@ export default async function HomePage() {
         ) : <p className="py-16">The first issue is on its way. Subscribe to hear when it is published.</p>}
         <section id="archive" className="journal-archive">
           <div className="archive-heading">
-            <h2>{current?.year ?? "Archive"}</h2>
+            <h2>{current ? `Volume ${current.volume} · ${current.year}–${String(current.year + 1).slice(-2)}` : "Archive"}</h2>
             <Link href="/issues">All issues &rarr;</Link>
           </div>
           <div className="archive-grid">
@@ -57,10 +57,10 @@ export default async function HomePage() {
                 <p>Vol. {issue.volume} | No. {issue.number}</p>
               </Link>
             ))}
-            {issues.length === 1 && upcoming.map((month) => <div key={`${month.year}-${month.month}`} className="archive-item archive-upcoming">
-              <div className="upcoming-cover">Upcoming</div>
+            {issues.length === 1 && upcoming.map((month, index) => <div key={`${month.year}-${month.month}`} className="archive-item archive-upcoming">
+              {index === 0 ? <div className="upcoming-cover archive-next-cover"><p className="cover-name"><i>The</i> Abyss</p><span className="archive-progress-label">In-progress issue</span></div> : <div className="upcoming-cover">Upcoming</div>}
               <h3>{issueLabel(month)}</h3>
-              <p>A new issue every month</p>
+              <p>Vol. {current!.volume} | No. {current!.number + index + 1}</p>
             </div>)}
           </div>
         </section>

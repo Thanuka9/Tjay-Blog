@@ -37,6 +37,7 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
             <span className="cover-article-type">{post.articleType}</span>
             <p>{post.title} {variant === "full" && <span className="cover-article-code">{post.articleCode}</span>}</p>
           </div>)}
+          {issue.upcomingArticles?.map((post) => <div key={post.articleCode}><span className="cover-article-type">{post.articleType}</span><p>{post.title}</p></div>)}
         </div>
       </div>
       <div className="cover-footer"><span>The research you need to make informed decisions</span><span>Sourced to peer-reviewed research</span></div>

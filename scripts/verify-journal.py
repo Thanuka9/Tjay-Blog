@@ -21,49 +21,56 @@ with sync_playwright() as p:
     issue = page.locator('a[href^="/issues/"]').first.get_attribute("href")
     article = page.locator('a[href^="/articles/"]').first.get_attribute("href")
     assert issue and article
-    for path in ["/current-issue","/issues","/about","/editorial-standards","/corrections","/newsletter","/articles","/topics","/search?q=peptides",issue,issue+"/cover",article]:
+    for path in ["/current-issue","/issues","/about","/editorial-standards","/corrections","/contact","/newsletter","/articles","/topics","/search?q=peptides",issue,issue+"/cover",article]:
         response=page.goto(base+path,wait_until="networkidle")
         assert response.status==200, (path,response.status)
         body = page.locator("body").inner_text()
         assert "The Assay" not in body, (path, body[max(0,body.find("The Assay")-60):body.find("The Assay")+100])
-    page.get_by_role("button",name="Cite",exact=True).click()
-    dialog=page.get_by_role("dialog")
-    assert "AB-" in dialog.inner_text()
-    dialog.get_by_role("button",name="APA",exact=True).click()
-    assert "The Abyss" in dialog.inner_text()
-    page.screenshot(path=str(out/"citation-dialog.png"),full_page=True)
-    page.keyboard.press("Escape")
+    assert page.get_by_role("button",name="Cite",exact=True).count()==0
+    assert page.get_by_role("button",name="Copy link",exact=True).count()==0
+    assert "CC BY-NC-ND" not in page.locator("body").inner_text()
     assert page.locator("h1").count() == 1
-    assert page.locator(".article-glance dt").all_text_contents() == ["What we know", "What we don’t know", "What to watch"]
-    assert page.locator(".article-evidence .evidence-steps li").count() == 5
-    assert "Animal studies" in page.locator(".article-evidence .is-highlighted").inner_text()
-    assert page.locator("#ghk-cu-copper-peptide").evaluate("e=>e.previousElementSibling.classList.contains('article-evidence')"), "Ladder must follow the BPC-157 section"
-    page.locator(".article-evidence").screenshot(path=str(out/"article-evidence-desktop.png"))
+    assert page.locator(".article-glance dt").all_text_contents() == ["Background", "Purpose", "What the evidence shows", "What this means for you"]
+    assert page.locator(".article-figure img").count()==7
+    for figure_image in page.locator(".article-figure img").all():
+        figure_image.scroll_into_view_if_needed()
+        figure_image.evaluate('(img)=>img.complete && img.naturalWidth>0 ? Promise.resolve() : new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error("Article figure failed to load"));})')
+    assert page.locator(".article-evidence").count()==0
+    assert page.get_by_role("heading",name="TB-500: the recovery peptide",exact=True).is_visible()
+    assert page.locator(".article-sources li").count()==10
+    assert page.locator(".article-byline").inner_text().find("October 9, 2026")>=0
+    for selector,size in [(".journal-article-heading h1","60px"),(".article-deck","22px"),(".article-prose","20px"),(".article-section-heading","30px"),(".article-glance dd","15px"),(".article-figure figcaption","14px"),(".article-sources li","15px")]:
+        assert page.locator(selector).first.evaluate("e=>getComputedStyle(e).fontSize")==size,selector
+    assert page.locator(".article-prose").evaluate("e=>getComputedStyle(e).lineHeight")=="34px"
+    assert page.locator(".journal-article-aside").bounding_box()["width"]==300
+    assert page.locator(".journal-article-grid").evaluate("e=>getComputedStyle(e).columnGap")=="56px"
+    page.locator(".article-figure").first.screenshot(path=str(out/"article-figure-desktop.png"))
     broken = page.locator('a[href^="#"]').evaluate_all('(els)=>els.filter(e=>e.hash && !document.getElementById(decodeURIComponent(e.hash.slice(1)))).map(e=>e.hash)')
     assert not broken, broken
-    page.get_by_role("button",name="Copy link",exact=True).click()
-    assert "copied" in page.locator(".article-copy-status").inner_text().lower() or page.get_by_label("Article link to copy").is_visible()
-    page.locator(".chart-data").first.locator("summary").click()
-    assert page.locator(".chart-data").first.locator("table").is_visible()
-    page.locator(".chart-data").first.locator("summary").click()
+    page.evaluate("Object.defineProperty(navigator,'share',{configurable:true,value:undefined})")
+    page.get_by_role("button",name="Share",exact=True).click()
+    page.wait_for_function("document.querySelector('.article-copy-status').textContent.length > 0")
+    assert "copied" in page.locator(".article-copy-status").inner_text().lower() or page.get_by_label("Article link to share").is_visible()
+    assert page.locator(".article-table").count()==2
     page.screenshot(path=str(out/"article-desktop.png"),full_page=True)
     page.emulate_media(media="print")
     page.pdf(path=str(out/"article-print.pdf"),format="A4",print_background=True)
     page.emulate_media(media="screen")
     printed = fitz.open(out/"article-print.pdf")
     printed_text = "\n".join(sheet.get_text() for sheet in printed)
-    assert "Category" in printed_text and "Cite this article" in printed_text, "Print view must preserve chart data and citations"
     print_compact = re.sub(r"\s+", "", printed_text.lower())
-    assert "ataglance" in print_compact and "theevidenceladder" in print_compact
+    assert "fdastatus" in print_compact and "citethisarticle" in print_compact, "Print view must preserve article tables and citations"
+    assert "CC BY-NC-ND" not in printed_text
+    assert "ataglance" in print_compact
     page.set_viewport_size({"width":390,"height":844})
-    for path in ["/",issue,issue+"/cover",article,"/about","/editorial-standards"]:
+    for path in ["/",issue,issue+"/cover",article,"/about","/contact","/editorial-standards"]:
         page.goto(base+path,wait_until="networkidle")
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"Horizontal overflow on {path}"
     page.goto(base,wait_until="networkidle")
     page.screenshot(path=str(out/"homepage-mobile.png"),full_page=True)
     page.goto(base+article,wait_until="networkidle")
     page.locator(".article-glance").screenshot(path=str(out/"article-glance-mobile.png"))
-    page.locator(".article-evidence").screenshot(path=str(out/"article-evidence-mobile.png"))
+    page.locator(".article-figure").first.screenshot(path=str(out/"article-figure-mobile.png"))
     page.locator(".article-mobile-contents summary").click()
     assert page.locator(".article-mobile-contents nav").is_visible()
     page.screenshot(path=str(out/"article-mobile.png"),full_page=True)
@@ -113,7 +120,7 @@ with sync_playwright() as p:
         page.get_by_placeholder("Write in Markdown. Add images from the toolbar or drop them here.").fill(sample)
         page.locator("summary").filter(has_text="Article summary and evidence ladder").click()
         page.get_by_label("Show At a glance",exact=True).check()
-        for label,body in [("What we know","A controlled trial measured the outcome."),("What we don’t know","Long-term effects remain uncertain."),("What to watch","Independent replication and follow-up.")]:
+        for label,body in [("Background","A controlled trial measured the outcome."),("Purpose","Explain what the trial measured."),("What the evidence shows","Long-term effects remain uncertain."),("What this means for you","Independent replication and follow-up.")]:
             page.get_by_label(label,exact=True).fill(body)
         page.get_by_label("Show evidence ladder",exact=True).check()
         page.get_by_label("Subject",exact=True).fill("Template review")
@@ -131,12 +138,13 @@ with sync_playwright() as p:
         assert preview.locator("#evidence-2").evaluate("e=>e.previousElementSibling.classList.contains('article-evidence')")
         assert preview.locator(".journal-kicker").first.inner_text().lower()=="evidence check"
         import json
-        assert json.loads(page.locator('input[name="atAGlance"]').input_value())["known"] == "A controlled trial measured the outcome."
+        assert json.loads(page.locator('input[name="abstract"]').input_value())[0]["text"] == "A controlled trial measured the outcome."
         assert json.loads(page.locator('input[name="evidenceLadder"]').input_value())["afterHeading"] == "evidence"
         page.get_by_label("Show At a glance",exact=True).uncheck()
         page.get_by_label("Show evidence ladder",exact=True).uncheck()
         assert preview.locator(".article-glance").count()==0 and preview.locator(".article-evidence").count()==0
         assert page.locator('input[name="atAGlance"]').input_value()=="null"
+        assert page.locator('input[name="abstract"]').input_value()=="null"
         assert page.locator('input[name="evidenceLadder"]').input_value()=="null"
         page.screenshot(path=str(out/"article-editor-preview.png"),full_page=True)
         print("Editor routes, article preview, chart reset, invalid-chart handling, and issue selection checks passed (no content saved).")
@@ -158,11 +166,15 @@ for kind,url in [("full",issue+"/download"),("article",article+"/download"),("co
         assert any(page.get_images() for page in doc), "Article image was not embedded"
     if kind=="article": assert "Table of Contents" not in text
     if kind in ["full","article"]:
-        for label in ["At a glance","What we know","What we don’t know","What to watch","The evidence ladder","Regulatory approval"]: assert label in text, label
-        assert text.index("BPC-157\n") < text.index("The evidence ladder") < text.index("GHK-Cu (copper peptide)")
+        for label in ["At a glance","Background","Purpose","What the evidence shows","What this means for you","TB-500: the recovery peptide"]: assert label in text, label
+        assert "CC BY-NC-ND" not in text
+        assert "Figure 7." in text
+        assert sum(len(sheet.get_images()) for sheet in doc)>=7, "All seven figures must be embedded"
+        fonts={font[3] for sheet in doc for font in sheet.get_fonts()}
+        assert any("Newsreader" in font for font in fonts) and any("IBMPlexSans" in font for font in fonts),fonts
     print(kind, "PDF:",len(doc),"pages",response.headers["Content-Disposition"])
     (out/f"{kind}.pdf").write_bytes(data)
 for path in ["/api/download/issue/1900-01","/api/download/nonsense/current","/articles/missing/download","/issues/1900/01/cover"]:
     try: urllib.request.urlopen(base+path); raise AssertionError(path)
     except urllib.error.HTTPError as error: assert error.code==404
-print("Palette, page routes, citations, mobile layout, PDF contents, images, and missing-resource checks passed.")
+print("Palette, typography, revised article, mobile layout, PDF contents, images, and missing-resource checks passed.")

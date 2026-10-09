@@ -59,7 +59,7 @@ export default async function ArticlePage({ params }: Props) {
     issue.posts.some((post) => post.id === original.id),
   );
   const post = issue?.posts.find((post) => post.id === original.id) || original;
-  const references = CITATIONS_BY_SLUG[slug] || [];
+  const references = post.references ?? CITATIONS_BY_SLUG[slug] ?? [];
   const features = articleFeatures(post);
   const headings = extractHeadings(post.content);
   const citations = journalCitations(post, issue);
@@ -96,7 +96,7 @@ export default async function ArticlePage({ params }: Props) {
           },
         }
       : undefined,
-    citation: references.map((ref) => ref.url),
+    citation: references.map((ref) => ref.url).filter(Boolean),
   };
   return (
     <article className="journal-article">
@@ -121,7 +121,7 @@ export default async function ArticlePage({ params }: Props) {
               <p className="article-author">By {post.author}</p>
               <p>Published <time dateTime={post.publishedAt || undefined}>{formatDate(post.publishedAt)}</time>{post.articleCode ? ` · ${post.articleCode}` : ""} · {post.readingTime} min read</p>
             </div>
-            <ShareActions slug={post.slug} citations={citations} />
+            <ShareActions slug={post.slug} />
           </div>
           {issue && (
             <a
@@ -135,7 +135,7 @@ export default async function ArticlePage({ params }: Props) {
         </header>
         <div className="journal-article-grid">
           <div className="article-reading-column">
-            <ArticleAtAGlance summary={features.atAGlance} />
+            <ArticleAtAGlance summary={features.atAGlance} abstract={post.abstract} />
             <details className="article-mobile-contents print:hidden">
               <summary>In this article</summary>
               <ArticleNavigation headings={headings} hasSources={references.length > 0} />
@@ -163,8 +163,7 @@ export default async function ArticlePage({ params }: Props) {
               <p className="mt-4 text-sm leading-7">{citations.vancouver}</p>
               <p className="mt-5 text-xs leading-6 text-muted-foreground">
                 This article explains published research for a general audience.
-                It is not medical advice. Articles licensed under{" "}
-                <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" className="underline">CC BY-NC-ND 4.0</a>.
+                It is not medical advice.
               </p>
               <p className="mt-3 text-xs text-muted-foreground">
                 Last updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>.{" "}
@@ -207,6 +206,10 @@ export default async function ArticlePage({ params }: Props) {
                   </ul>
                 </section>
               )}
+              {!!issue?.upcomingArticles?.length && <section className="article-coming-up">
+                <Kicker>Coming up</Kicker>
+                <ul>{issue.upcomingArticles.map((item) => <li key={item.articleCode}>{item.title}</li>)}</ul>
+              </section>}
               <section className="article-newsletter">
                 <p className="mb-5 font-serif text-xl">
                   Get each article the day it’s published.
