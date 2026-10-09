@@ -17,13 +17,13 @@ export default async function ArchivePage() {
       {years.map((year) => (
         <section key={year} className="journal-archive">
           <h2 className="mb-8 font-serif text-4xl">{year}</h2>
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+          <div className="archive-grid">
             {issues
               .filter((issue) => issue.year === year)
               .map((issue) => (
                 <div key={issue.id} className="archive-item">
                   <Link href={issuePath(issue)}>
-                    <IssueCover issue={issue} />
+                    <IssueCover issue={issue} variant="archive" current={issue.id === issues[0]?.id} />
                     <h3>{issue.label}</h3>
                   </Link>
                   <p>

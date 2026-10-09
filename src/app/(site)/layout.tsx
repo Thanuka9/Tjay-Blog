@@ -10,8 +10,9 @@ export default async function SiteLayout({
 }) {
   return (
     <div className="journal-site flex min-h-full flex-1 flex-col">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <SiteHeader />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
       <SiteFooter />
     </div>
   );

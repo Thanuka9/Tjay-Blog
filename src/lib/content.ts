@@ -1,4 +1,7 @@
 import type { ChartSpec } from "@/lib/types";
+import { isChartSpec } from "@/lib/charts";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 
 export type ContentBlock =
   | { type: "markdown"; content: string }
@@ -6,11 +9,15 @@ export type ContentBlock =
 
 export function splitContent(content: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
+  const codeRanges = unified().use(remarkParse).parse(content).children
+    .filter((node) => node.type === "code")
+    .map((node) => ({ start: node.position?.start.offset ?? -1, end: node.position?.end.offset ?? -1 }));
   const pattern = /:::chart\s*\n([\s\S]*?)\n:::/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(content))) {
+    if (codeRanges.some((range) => match!.index >= range.start && match!.index < range.end)) continue;
     if (match.index > lastIndex) {
       blocks.push({
         type: "markdown",
@@ -18,9 +25,11 @@ export function splitContent(content: string): ContentBlock[] {
       });
     }
     try {
+      const spec: unknown = JSON.parse(match[1]);
+      if (!isChartSpec(spec)) throw new Error("Invalid chart data");
       blocks.push({
         type: "chart",
-        spec: JSON.parse(match[1]) as ChartSpec,
+        spec,
       });
     } catch {
       blocks.push({ type: "markdown", content: match[0] });

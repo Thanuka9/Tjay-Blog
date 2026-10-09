@@ -1,68 +1,46 @@
+import Image from "next/image";
 import type { JournalIssue } from "@/lib/issues";
+import { issueCoverImage, issueCoverDescription } from "@/lib/issue-cover";
 import { CoverMedia } from "@/components/site/CoverMedia";
-export function IssueCover({ issue }: { issue: JournalIssue }) {
+
+export function IssueCover({ issue, variant = "standard", current = false }: {
+  issue: JournalIssue;
+  variant?: "standard" | "archive" | "full";
+  current?: boolean;
+}) {
+  const image = issueCoverImage(issue);
   return (
-    <div className="issue-cover">
-      <p className="cover-date">
-        Volume {issue.volume}, Number {issue.number}, {issue.label}
-      </p>
-      <p className="cover-name">
-        <i>The</i> Abyss
-      </p>
-      <p className="cover-subtitle">A science journal for everyone</p>
-      <div className="cover-art">
-        {issue.coverImage ? (
-          <CoverMedia
-            src={issue.coverImage}
-            alt={issue.coverDescription || `${issue.label} cover`}
-            sizes="320px"
-            className="object-cover"
-          />
-        ) : (
-          <svg
-            viewBox="0 0 310 130"
-            preserveAspectRatio="none"
-            className="h-full w-full"
-            aria-hidden="true"
-          >
-            <rect width="310" height="130" fill="#08152E" />
-            <rect width="68" height="130" fill="#0D1E3F" />
-            {[18, 32, 46, 60, 74].map((y) => (
-              <path
-                key={y}
-                d={`M68 ${y} C120 ${y - 9},145 ${y + 16},196 ${y + 5} S270 ${y - 8},310 ${y + 6}`}
-                fill="none"
-                stroke="#2C797C"
-                strokeOpacity=".35"
-              />
-            ))}
-            {[1, 0.78, 0.56, 0.34].map((scale) => (
-              <ellipse
-                key={scale}
-                cx="245"
-                cy="101"
-                rx={55 * scale}
-                ry={18 * scale}
-                stroke="#7FC4C9"
-                strokeOpacity={0.35}
-                fill="none"
-              />
-            ))}
-            <circle cx="245" cy="101" r="1.5" fill="#7FC4C9" />
-          </svg>
-        )}
+    <div className={`issue-cover issue-cover-${variant}`}>
+      <div className="cover-topline">
+        <div className="cover-brand">
+          <Image src="/brand/abyss-logo.png" alt="" width={24} height={24} />
+          <span>A science journal<br />for everyone</span>
+        </div>
+        <p className="cover-date">Volume {issue.volume}, Number {issue.number},<br />{issue.label}</p>
       </div>
-      <div className="cover-contents">
-        <span className="cover-number">
-          {String(issue.number).padStart(2, "0")}
-        </span>
-        <div>
-          {issue.posts.map((post) => (
-            <p key={post.id}>{post.title}</p>
-          ))}
+      <p className="cover-name"><i>The</i> Abyss</p>
+      <p className="cover-subtitle">Below the headlines, into the evidence.</p>
+      <div className="cover-art">
+        <div className="cover-color" />
+        <div className="cover-photo">
+          {image ? <CoverMedia src={image} alt={issueCoverDescription(issue)} priority={variant !== "archive"} sizes={variant === "full" ? "(max-width: 1200px) 80vw, 900px" : "(max-width: 767px) 80vw, 360px"} /> : <div className="cover-abstract" />}
+          {image === "/covers/insulin-crystals.webp" && <span className="cover-caption">On the cover · Crystals of insulin · {variant === "full" && "Antonio Romero / Science Photo Library · "}{issue.posts[0]?.articleCode}</span>}
         </div>
       </div>
-      <p className="cover-footer">Sourced to research. Free to read.</p>
+      <div className="cover-contents">
+        <div className="cover-issue-number">
+          <span className="cover-number">{String(issue.number).padStart(2, "0")}</span>
+          <p>Vol. {issue.volume} · {issue.label}</p>
+        </div>
+        <div className="cover-articles">
+          {issue.posts.map((post) => <div key={post.id}>
+            <span className="cover-article-type">{post.articleType}</span>
+            <p>{post.title} {variant === "full" && <span className="cover-article-code">{post.articleCode}</span>}</p>
+          </div>)}
+        </div>
+      </div>
+      <div className="cover-footer"><span>The research you need to make informed decisions</span><span>Sourced to peer-reviewed research</span></div>
+      {variant === "archive" && current && <span className="archive-current-label">Current issue</span>}
     </div>
   );
 }

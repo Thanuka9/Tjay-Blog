@@ -4,12 +4,12 @@ export function SourceList({ citations }: { citations: Citation[] }) {
   if (citations.length === 0) return null;
 
   return (
-    <section className="mt-16 border-t border-border pt-10" aria-labelledby="sources-heading">
+    <section className="article-sources" aria-labelledby="sources-heading">
       <h2
         id="sources-heading"
         className="font-serif text-2xl tracking-tight"
       >
-        Sources
+        References
       </h2>
       <ol className="mt-6 space-y-5">
         {citations.map((citation) => (

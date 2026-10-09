@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { subscribeAction } from "@/app/(site)/subscribe/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function SubscribeForm({ compact = false }: { compact?: boolean }) {
+export function SubscribeForm({ compact = false, showLabel = false, buttonLabel = "Subscribe" }: { compact?: boolean; showLabel?: boolean; buttonLabel?: string }) {
+  const emailId = useId();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -33,9 +34,11 @@ export function SubscribeForm({ compact = false }: { compact?: boolean }) {
         }
       }}
     >
-      <div className={compact ? "flex gap-2" : "flex flex-col gap-3"}>
+      {showLabel && <label htmlFor={emailId} className="text-[13px] font-medium">Email address</label>}
+      <div className={compact ? "flex flex-wrap gap-3" : "flex flex-col gap-3"}>
         <Input
           type="email"
+          id={emailId}
           name="email"
           required
           placeholder="you@example.com"
@@ -47,11 +50,11 @@ export function SubscribeForm({ compact = false }: { compact?: boolean }) {
           disabled={pending}
           className={compact ? "h-10 rounded-full px-4" : "h-11 rounded-full"}
         >
-          {pending ? "Joining…" : "Subscribe"}
+          {pending ? "Joining…" : buttonLabel}
         </Button>
       </div>
-      {message ? <p className="text-sm text-foreground">{message}</p> : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {message ? <p role="status" className="text-sm text-foreground">{message}</p> : null}
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     </form>
   );
 }

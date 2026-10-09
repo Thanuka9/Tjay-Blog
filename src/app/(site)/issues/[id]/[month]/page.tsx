@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container, Kicker } from "@/components/site/layout";
 import { IssueCover } from "@/components/site/IssueCover";
+import { issueCoverDescription } from "@/lib/issue-cover";
 import { IssueContents } from "@/components/site/IssueContents";
 import { getPublishedIssue } from "@/lib/store";
 import { issuePath } from "@/lib/issues";
@@ -49,70 +50,42 @@ export default async function IssuePage(props: Props) {
     })),
   };
   return (
-    <Container className="py-12">
+    <Container className="issue-page">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
         }}
       />
-      <Link href="/issues" className="text-sm text-muted-foreground">
-        Archive / {issue.year} / Vol. {issue.volume}, No. {issue.number}
-      </Link>
-      <h1 className="mt-6 font-serif text-5xl">{issue.label}</h1>
-      <p className="mt-3 text-sm">
-        Vol. {issue.volume} | No. {issue.number}
-      </p>
-      <div className="current-issue mt-10">
+      <p className="issue-breadcrumb"><Link href="/issues">Archive</Link> / {issue.year} / Vol. {issue.volume}, No. {issue.number}</p>
+      <div className="issue-page-heading">
+        <h1>{issue.label}</h1>
+        <p>Vol. {issue.volume} | No. {issue.number}</p>
+      </div>
+      <div className="current-issue">
         <div>
-          <IssueCover issue={issue} />
-          <div className="mt-6 flex flex-col items-start gap-4 text-xs font-semibold">
-            <a href="#about-the-cover">ABOUT THE COVER ↓</a>
-            <a href={`/api/download/contents/${issue.id}`} download>
-              ↓ TABLE OF CONTENTS (PDF)
-            </a>
-            <a
-              className="journal-download"
-              href={`${issuePath(issue)}/download`}
-              download
-            >
-              ↓ DOWNLOAD FULL ISSUE (PDF)
-            </a>
+          <Link href={`${issuePath(issue)}/cover`} aria-label={`View full-size cover for ${issue.label}`}><IssueCover issue={issue} /></Link>
+          <div className="issue-cover-links">
+            <a href="#about-the-cover">About the cover &darr;</a>
+            <a href={`/api/download/contents/${issue.id}`} download>Table of contents (PDF) &darr;</a>
+            <a href={`${issuePath(issue)}/download`} download>Full issue (PDF) &darr;</a>
           </div>
         </div>
         <div>
-          <Kicker>From the Editor</Kicker>
-          {issue.editorLetter ? (
-            <div className="editor-letter">
-              {issue.editorLetter.split(/\n\s*\n/).map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 mb-5 leading-8 text-muted-foreground">
-              Below the headlines, into the evidence. Read this issue’s
-              articles, follow their sources, and download the journal to
-              explore at your own pace.
-            </p>
-          )}
-          <p className="mt-4 mb-10 text-sm italic">
-            {issue.editorName}, Editor
-          </p>
-          <h2 className="font-serif text-3xl">Table of Contents</h2>
+          <Kicker>From the editor</Kicker>
+          <div className="editor-letter">
+            {issue.editorLetter ? issue.editorLetter.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>) : <p>Each article in this issue starts from something people are already talking about and goes back to the published research. The point of The Abyss is to sort strong evidence from early findings, plainly, with every claim traced back to its source, so that the next time one of these stories crosses your feed you know how much weight it can bear.</p>}
+          </div>
+          <p className="editor-byline">{issue.editorName === site.name ? "TJ" : issue.editorName}, Editor</p>
+          <h2 className="table-of-contents-heading">Table of contents</h2>
           <IssueContents issue={issue} />
+          <section id="about-the-cover" className="about-the-cover">
+            <Kicker>About the cover</Kicker>
+            <p>{issueCoverDescription(issue)}</p>
+            <p className="issue-citation">How to cite: Author. Article title. {site.name}. {issue.year};{issue.volume}({issue.number}):article number.</p>
+          </section>
         </div>
       </div>
-      <section id="about-the-cover" className="border-t border-border py-8">
-        <Kicker>About the cover</Kicker>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground">
-          {issue.coverDescription ||
-            "The issue cover introduces this month’s research and articles."}
-        </p>
-        <p className="mt-6 text-xs text-muted-foreground">
-          How to cite: Author. Article title. {site.name}. {issue.year};
-          {issue.volume}({issue.number}):article number.
-        </p>
-      </section>
     </Container>
   );
 }

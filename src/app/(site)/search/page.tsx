@@ -28,14 +28,14 @@ export default async function SearchPage({
             Search
           </h1>
         </div>
-        <form action="/search" className="flex gap-2 lg:col-span-6">
+        <form action="/search" className="flex min-w-0 gap-2 lg:col-span-6">
           <Input
             type="search"
             name="q"
             defaultValue={query}
             placeholder="Peptides, FDA, collagen…"
             aria-label="Search articles"
-            className="h-11 rounded-full"
+            className="h-11 min-w-0 flex-1"
           />
           <Button type="submit" className="h-11 rounded-full px-6">
             Search

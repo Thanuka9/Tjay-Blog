@@ -4,10 +4,11 @@ export const site = {
   description:
     "A science journal for everyone. Monthly issues, evidence-led articles, and free journal downloads. Below the headlines, into the evidence.",
   supportingDescription: "A science journal for everyone",
+  correctionsEmail: "corrections.theabyss@gmail.com",
 };
 
 export const nav = [
-  { href: "/current-issue", label: "Current Issue" },
+  { href: "/current-issue", label: "Current issue" },
   { href: "/issues", label: "Archive" },
   { href: "/about", label: "About" },
   { href: "/newsletter", label: "Newsletter" },

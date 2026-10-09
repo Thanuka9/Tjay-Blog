@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { BarChart3, Globe, ImagePlus, Save, X } from "lucide-react";
 import { savePostAction } from "@/app/admin/actions";
 import { ArticleBody } from "@/components/article/ArticleBody";
+import { ArticleAtAGlance } from "@/components/article/ArticleFeatures";
+import { articleFeatures } from "@/lib/article-features";
+import { extractHeadings } from "@/lib/headings";
+import { SourceList } from "@/components/article/SourceList";
+import { CITATIONS_BY_SLUG } from "@/lib/citations";
 import { ChartBuilder } from "@/components/admin/ChartBuilder";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +30,8 @@ import { parseBodyImages } from "@/lib/markdown-images";
 import { slugify } from "@/lib/site";
 import {
   ARTICLE_TYPES,
+  EVIDENCE_STAGES,
+  type EvidenceLadder,
   type Issue,
   type PostMeta,
   type Topic,
@@ -41,6 +48,8 @@ type EditorPost = Pick<
   | "sequence"
   | "articlePdf"
   | "citation"
+  | "atAGlance"
+  | "evidenceLadder"
 > & {
   id: string;
   title: string;
@@ -72,6 +81,12 @@ export function PostEditor({
   const [title, setTitle] = useState(post.title);
   const [slug, setSlug] = useState(post.slug);
   const [excerpt, setExcerpt] = useState(post.excerpt);
+  const initialFeatures = articleFeatures(post);
+  const [summaryEnabled, setSummaryEnabled] = useState(Boolean(initialFeatures.atAGlance));
+  const [summary, setSummary] = useState(initialFeatures.atAGlance || { known: "", unknown: "", watch: "" });
+  const [ladderEnabled, setLadderEnabled] = useState(Boolean(initialFeatures.evidenceLadder));
+  const [ladder, setLadder] = useState<EvidenceLadder>(initialFeatures.evidenceLadder || { subject: "", stage: "Cell and lab studies", caption: "", afterHeading: "" });
+  const [articleType, setArticleType] = useState(post.articleType || "Research Article");
   const [content, setContent] = useState(post.content);
   const [coverImage, setCoverImage] = useState(post.coverImage ?? "");
   const [featured, setFeatured] = useState(post.featured);
@@ -84,6 +99,7 @@ export function PostEditor({
   const [dragging, setDragging] = useState(false);
   const bodyImages = parseBodyImages(content);
   const charts = parseCharts(content);
+  const references = CITATIONS_BY_SLUG[slug] || [];
 
   async function uploadFile(
     file: File,
@@ -171,7 +187,7 @@ export function PostEditor({
     if (!formEl) return;
     if (!formEl.checkValidity()) {
       formEl.reportValidity();
-      toast.error("Fill in the headline and excerpt before publishing.");
+      toast.error("Complete the required article fields before saving.");
       return;
     }
     const liveContent = contentRef.current?.value || content;
@@ -221,6 +237,8 @@ export function PostEditor({
           value={featured ? "true" : "false"}
         />
         <input type="hidden" name="content" value={content} />
+        <input type="hidden" name="atAGlance" value={JSON.stringify(summaryEnabled ? summary : null)} />
+        <input type="hidden" name="evidenceLadder" value={JSON.stringify(ladderEnabled ? ladder : null)} />
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -238,6 +256,37 @@ export function PostEditor({
               required
             />
           </div>
+          <details className="rounded-lg border border-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">Article summary and evidence ladder</summary>
+            <fieldset className="mt-4 space-y-3">
+              <legend className="sr-only">At a glance</legend>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={summaryEnabled} onChange={(event) => setSummaryEnabled(event.target.checked)} />Show At a glance</label>
+              {summaryEnabled && ([ ["known", "What we know"], ["unknown", "What we don’t know"], ["watch", "What to watch"] ] as const).map(([key, label]) => <div key={key} className="space-y-2">
+                <Label htmlFor={`summary-${key}`}>{label}</Label>
+                <Textarea id={`summary-${key}`} value={summary[key]} maxLength={1200} required onChange={(event) => setSummary({ ...summary, [key]: event.target.value })} />
+              </div>)}
+            </fieldset>
+            <fieldset className="mt-5 space-y-3">
+              <legend className="sr-only">Evidence ladder</legend>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={ladderEnabled} onChange={(event) => setLadderEnabled(event.target.checked)} />Show evidence ladder</label>
+              {ladderEnabled && <>
+                <Label htmlFor="evidence-subject">Subject</Label>
+                <Input id="evidence-subject" value={ladder.subject} maxLength={160} required onChange={(event) => setLadder({ ...ladder, subject: event.target.value })} />
+                <Label htmlFor="evidence-stage">Main body of evidence</Label>
+                <select id="evidence-stage" className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm" value={ladder.stage} onChange={(event) => setLadder({ ...ladder, stage: event.target.value as EvidenceLadder["stage"] })}>
+                  {EVIDENCE_STAGES.map((stage) => <option key={stage}>{stage}</option>)}
+                </select>
+                <Label htmlFor="evidence-position">Place after section</Label>
+                <select id="evidence-position" className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm" value={ladder.afterHeading || ""} onChange={(event) => setLadder({ ...ladder, afterHeading: event.target.value })}>
+                  <option value="">Before article body</option>
+                  {extractHeadings(content).map((heading) => <option key={heading.id} value={heading.id}>{heading.text}</option>)}
+                </select>
+                <Label htmlFor="evidence-caption">Figure caption</Label>
+                <Textarea id="evidence-caption" value={ladder.caption} maxLength={1600} required onChange={(event) => setLadder({ ...ladder, caption: event.target.value })} />
+                <p className="text-xs text-muted-foreground">Describe the evidence for this subject and its limitations. The ladder represents study stages, not a numerical score.</p>
+              </>}
+            </fieldset>
+          </details>
           <Tabs defaultValue="write">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <TabsList>
@@ -325,8 +374,15 @@ export function PostEditor({
               />
             </TabsContent>
             <TabsContent value="preview">
-              <div className="rounded-xl border border-border bg-background p-6 sm:p-10">
-                <ArticleBody content={content || "*Nothing to preview yet.*"} />
+              <div className="journal-theme article-editor-preview border border-border bg-background p-6 sm:p-10">
+                <header className="journal-article-heading">
+                  <p className="journal-kicker uppercase">{articleType}</p>
+                  <h1>{title || "Untitled article"}</h1>
+                  {excerpt && <p className="article-deck">{excerpt}</p>}
+                </header>
+                <ArticleAtAGlance summary={summaryEnabled ? summary : null} />
+                <ArticleBody content={content || "*Nothing to preview yet.*"} citationIds={references.map((reference) => reference.id)} evidenceLadder={ladderEnabled ? ladder : null} />
+                <SourceList citations={references} />
               </div>
             </TabsContent>
           </Tabs>
@@ -474,7 +530,8 @@ export function PostEditor({
             <select
               id="articleType"
               name="articleType"
-              defaultValue={post.articleType || "Research Article"}
+              value={articleType}
+              onChange={(event) => setArticleType(event.target.value as typeof articleType)}
               className="w-full rounded border border-border bg-background p-2 text-sm"
             >
               {ARTICLE_TYPES.map((type) => (

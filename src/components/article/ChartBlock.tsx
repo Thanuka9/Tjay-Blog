@@ -71,8 +71,8 @@ export function ChartBlock({
   const curve = chart.curved ? "monotone" : "linear";
 
   return (
-    <figure className={cn("break-inside-avoid", compact ? "my-0" : "my-12")}>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <figure className={cn("article-chart break-inside-avoid", compact ? "my-0" : "my-12")}>
+      <div className="overflow-hidden border border-border bg-card">
         <div className="border-b border-border px-5 py-4">
           <figcaption className="font-serif text-lg leading-snug text-foreground">
             {chart.title}
@@ -83,7 +83,7 @@ export function ChartBlock({
             </p>
           ) : null}
         </div>
-        <div className="px-3 py-4 sm:px-5" style={{ height }}>
+        <div className="chart-visual px-3 py-4 sm:px-5" style={{ height }} role="img" aria-label={`${chart.title}. Data is available in the table below.`}>
           <ResponsiveContainer width="100%" height="100%">
             {pie ? (
               <PieChart>
@@ -222,6 +222,16 @@ export function ChartBlock({
             Units: {chart.unit}
           </p>
         ) : null}
+        <details className="chart-data border-t border-border px-5 py-3">
+          <summary className="cursor-pointer text-xs font-semibold">View chart data</summary>
+          <div className="mt-3 overflow-x-auto" role="region" aria-label={`${chart.title} data`} tabIndex={0}>
+            <table className="w-full border-collapse text-left text-xs">
+              <caption className="sr-only">{chart.title}{chart.unit ? ` (${chart.unit})` : ""}</caption>
+              <thead><tr><th scope="col" className="py-2 pr-4">Category</th>{series.map((item) => <th key={item.key} scope="col" className="py-2 pr-4">{item.label}</th>)}</tr></thead>
+              <tbody>{chart.data.map((row, index) => <tr key={`${row.name}-${index}`} className="border-t border-border"><th scope="row" className="py-2 pr-4 font-normal">{row.name}</th>{series.map((item) => <td key={item.key} className="py-2 pr-4">{row[item.key as "value" | "value2" | "value3"] ?? "—"}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        </details>
       </div>
     </figure>
   );

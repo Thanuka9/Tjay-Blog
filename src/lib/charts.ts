@@ -79,6 +79,22 @@ export function isChartType(value: string): value is ChartType {
   return CHART_TYPES.some((item) => item.value === value);
 }
 
+export function isChartSpec(value: unknown): value is ChartSpec {
+  if (!value || typeof value !== "object") return false;
+  const spec = value as Record<string, unknown>;
+  if (typeof spec.title !== "string" || typeof spec.type !== "string" ||
+      (!isChartType(spec.type) && spec.type !== "horizontalBar") || !Array.isArray(spec.data)) return false;
+  if (!spec.data.every((row: unknown) => {
+    if (!row || typeof row !== "object") return false;
+    const item = row as Record<string, unknown>;
+    return typeof item.name === "string" && typeof item.value === "number" && Number.isFinite(item.value) &&
+      ["value2", "value3"].every((key) => item[key] == null || (typeof item[key] === "number" && Number.isFinite(item[key])));
+  })) return false;
+  return ["description", "unit", "color", "palette"].every((key) => spec[key] == null || typeof spec[key] === "string") &&
+    ["height", "yMin", "yMax"].every((key) => spec[key] == null || (typeof spec[key] === "number" && Number.isFinite(spec[key]))) &&
+    ["colors", "seriesLabels"].every((key) => spec[key] == null || (Array.isArray(spec[key]) && spec[key].every((item) => typeof item === "string")));
+}
+
 export function normalizeChartType(type: ChartSpec["type"]): ChartType {
   if (type === "horizontalBar") return "horizontal-bar";
   return isChartType(type) ? type : "bar";
@@ -104,7 +120,7 @@ export function normalizeChartSpec(spec: ChartSpec): ChartSpec {
     showDots: spec.showDots ?? true,
     curved: spec.curved ?? true,
     stacked: spec.stacked ?? false,
-    height: spec.height ?? 288,
+    height: Math.min(640, Math.max(180, spec.height ?? 288)),
   };
 }
 
@@ -123,10 +139,10 @@ export function parseChartRows(text: string): ChartRow[] {
     .map((line) => {
       const parts = line.split(",").map((part) => part.trim());
       const name = parts[0] ?? "";
-      const nums = parts.slice(1).map(Number).filter(Number.isFinite);
-      const row: ChartRow = { name, value: nums[0] ?? 0 };
-      if (nums[1] != null) row.value2 = nums[1];
-      if (nums[2] != null) row.value3 = nums[2];
+      const nums = parts.slice(1, 4).map((value) => value === "" ? NaN : Number(value));
+      const row: ChartRow = { name, value: nums[0] ?? NaN };
+      if (Number.isFinite(nums[1])) row.value2 = nums[1];
+      if (Number.isFinite(nums[2])) row.value3 = nums[2];
       return row;
     })
     .filter((row) => row.name && Number.isFinite(row.value));

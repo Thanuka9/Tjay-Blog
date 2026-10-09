@@ -25,7 +25,7 @@ export async function ArticleCard({
         <Link
           href={`/articles/${post.slug}`}
           className={cn(
-            "relative block overflow-hidden rounded-xl bg-muted",
+            "relative block overflow-hidden bg-muted",
             featured
               ? "aspect-[16/10] lg:col-span-7"
               : "mb-4 aspect-[16/10]",

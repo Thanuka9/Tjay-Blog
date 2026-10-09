@@ -31,9 +31,8 @@ export default async function TopicsPage() {
           </h1>
         </div>
         <p className="max-w-xl text-lg leading-8 text-muted-foreground lg:col-span-5">
-          Five subjects to start. Editors can add more. Every article is filed
-          under one of them. The latest piece in each subject is listed to the
-          right.
+          Explore our articles by subject. Each topic brings together published
+          research, its sources, and the questions the evidence can answer.
         </p>
       </div>
       <div className="divide-y border-border">

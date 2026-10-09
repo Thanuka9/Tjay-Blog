@@ -57,6 +57,8 @@ export default async function EditPostPage({
           sequence: post.sequence || journalPost?.sequence,
           articlePdf: post.articlePdf,
           citation: post.citation,
+          atAGlance: post.atAGlance,
+          evidenceLadder: post.evidenceLadder,
         }}
       />
     </div>

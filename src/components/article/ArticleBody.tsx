@@ -1,36 +1,28 @@
 "use client";
 
-import type { ReactNode } from "react";
 import type { Components } from "react-markdown";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChartBlock } from "@/components/article/ChartBlock";
 import { splitContent } from "@/lib/content";
-import { linkCitations } from "@/lib/citations";
-import { slugify } from "@/lib/site";
-
-function nodeText(node: ReactNode): string {
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(nodeText).join("");
-  if (node && typeof node === "object" && "props" in node) {
-    return nodeText(
-      (node as { props: { children?: ReactNode } }).props.children,
-    );
-  }
-  return "";
-}
+import { extractHeadings } from "@/lib/headings";
+import { remarkArticle } from "@/lib/article-markdown";
+import { EvidenceLadder } from "@/components/article/ArticleFeatures";
+import { evidencePlacement } from "@/lib/article-features";
+import type { EvidenceLadder as Ladder } from "@/lib/types";
 
 const components: Components = {
-  h2: ({ children }) => (
+  h1: ({ children }) => <h2 className="article-section-heading">{children}</h2>,
+  h2: ({ children, node }) => (
     <h2
-      id={slugify(nodeText(children))}
-      className="mt-14 mb-4 scroll-mt-24 font-serif text-[1.85rem] leading-tight tracking-tight text-foreground"
+      id={node?.properties.id as string | undefined}
+      className="article-section-heading"
     >
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mt-8 mb-2 font-sans text-[0.72rem] font-semibold tracking-[0.16em] text-brand uppercase">
+    <h3 className="article-subheading">
       {children}
     </h3>
   ),
@@ -40,7 +32,7 @@ const components: Components = {
     );
     if (hasImage) return <>{children}</>;
     return (
-      <p className="my-5 text-[1.0625rem] leading-[1.8] text-foreground/90">
+      <p className="article-paragraph">
         {children}
       </p>
     );
@@ -57,12 +49,14 @@ const components: Components = {
   img: ({ src, alt }) =>
     typeof src === "string" ? (
       <figure className="my-10">
-        <span className="block overflow-hidden rounded-xl bg-muted">
+        <span className="block overflow-hidden bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt || ""}
             className="mx-auto block h-auto w-full object-contain"
+            loading="lazy"
+            decoding="async"
           />
         </span>
         {alt ? (
@@ -73,12 +67,12 @@ const components: Components = {
       </figure>
     ) : null,
   ol: ({ children }) => (
-    <ol className="my-6 list-decimal space-y-3 pl-6 text-[1.0625rem] leading-[1.8]">
+    <ol className="article-list list-decimal">
       {children}
     </ol>
   ),
   ul: ({ children }) => (
-    <ul className="my-6 list-disc space-y-3 pl-6 text-[1.0625rem] leading-[1.8]">
+    <ul className="article-list list-disc">
       {children}
     </ul>
   ),
@@ -90,6 +84,7 @@ const components: Components = {
         <sup className="citation ml-0.5">
           <a
             href={href}
+            aria-label={`Reference ${String(children)}`}
             className="font-sans text-[0.7em] font-semibold text-brand no-underline hover:underline"
           >
             [{children}]
@@ -109,8 +104,8 @@ const components: Components = {
     );
   },
   table: ({ children }) => (
-    <div className="my-10 -mx-1 overflow-x-auto">
-      <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+    <div className="article-table-scroll" role="region" aria-label="Article table" tabIndex={0}>
+      <table className="article-table">
         {children}
       </table>
     </div>
@@ -128,26 +123,42 @@ const components: Components = {
       {children}
     </td>
   ),
+  pre: ({ children }) => <pre className="article-code">{children}</pre>,
+  hr: () => <hr className="my-10 border-border" />,
 };
 
-export function ArticleBody({ content }: { content: string }) {
-  const blocks = splitContent(linkCitations(content));
+export function ArticleBody({ content, citationIds = [], evidenceLadder }: { content: string; citationIds?: number[]; evidenceLadder?: Ladder | null }) {
+  const placement = evidencePlacement(content, evidenceLadder);
+  const bodyComponents: Components = { ...components, h2: ({ children, node }) => <>
+    {evidenceLadder && placement.before === node?.properties.id && <EvidenceLadder ladder={evidenceLadder} />}
+    <h2 id={node?.properties.id as string | undefined} className="article-section-heading">{children}</h2>
+  </> };
+  const headingIds = extractHeadings(content).map((heading) => heading.id);
+  const contentBlocks = splitContent(content);
+  const headingOffsets = contentBlocks.reduce<number[]>((offsets, block) =>
+    [...offsets, offsets[offsets.length - 1] + (block.type === "markdown" ? extractHeadings(block.content).length : 0)], [0]);
+  const blocks = contentBlocks.map((block, index) => {
+    if (block.type === "chart") return { ...block, headingIds: [] };
+    return { ...block, headingIds: headingIds.slice(headingOffsets[index], headingOffsets[index + 1]) };
+  });
 
   return (
     <div className="article-prose">
+      {evidenceLadder && placement.start && <EvidenceLadder ladder={evidenceLadder} />}
       {blocks.map((block, index) =>
         block.type === "chart" ? (
           <ChartBlock key={`chart-${index}`} spec={block.spec} />
         ) : (
           <Markdown
             key={`md-${index}`}
-            remarkPlugins={[remarkGfm]}
-            components={components}
+            remarkPlugins={[remarkGfm, [remarkArticle, { headingIds: block.headingIds, citationIds }]]}
+            components={bodyComponents}
           >
             {block.content}
           </Markdown>
         ),
       )}
+      {evidenceLadder && placement.end && <EvidenceLadder ladder={evidenceLadder} />}
     </div>
   );
 }

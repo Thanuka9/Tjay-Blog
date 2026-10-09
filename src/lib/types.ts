@@ -7,6 +7,14 @@ export const ARTICLE_TYPES = [
   "Research Article",
 ] as const;
 export type ArticleType = (typeof ARTICLE_TYPES)[number];
+export type AtAGlance = { known: string; unknown: string; watch: string };
+export const EVIDENCE_STAGES = ["Cell and lab studies", "Animal studies", "Small human studies", "Randomized controlled trials", "Regulatory approval"] as const;
+export type EvidenceLadder = {
+  subject: string;
+  stage: (typeof EVIDENCE_STAGES)[number];
+  caption: string;
+  afterHeading?: string;
+};
 export type Issue = {
   id: string;
   volume: number;
@@ -58,6 +66,8 @@ export type PostMeta = {
   sequence?: number;
   articlePdf?: string | null;
   citation?: string;
+  atAGlance?: AtAGlance | null;
+  evidenceLadder?: EvidenceLadder | null;
 };
 
 export type Post = PostMeta & {

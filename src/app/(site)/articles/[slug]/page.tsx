@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleBody } from "@/components/article/ArticleBody";
+import { ArticleAtAGlance } from "@/components/article/ArticleFeatures";
+import { articleFeatures } from "@/lib/article-features";
+import { ArticleNavigation } from "@/components/article/ArticleNavigation";
 import { SourceList } from "@/components/article/SourceList";
 import { CoverMedia } from "@/components/site/CoverMedia";
 import { Container, Kicker } from "@/components/site/layout";
@@ -20,7 +23,7 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
-  if (!post || post.status !== "published") return {};
+  if (!post || post.status !== "published" || !post.publishedAt) return {};
   const title = post.seoTitle || post.title;
   const description = post.seoDescription || post.excerpt;
   return {
@@ -50,13 +53,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const original = await getPostBySlug(slug);
-  if (!original || original.status !== "published") notFound();
+  if (!original || original.status !== "published" || !original.publishedAt) notFound();
   const issues = await listPublishedIssues();
   const issue = issues.find((issue) =>
     issue.posts.some((post) => post.id === original.id),
   );
   const post = issue?.posts.find((post) => post.id === original.id) || original;
   const references = CITATIONS_BY_SLUG[slug] || [];
+  const features = articleFeatures(post);
   const headings = extractHeadings(post.content);
   const citations = journalCitations(post, issue);
   const related = issue
@@ -95,46 +99,47 @@ export default async function ArticlePage({ params }: Props) {
     citation: references.map((ref) => ref.url),
   };
   return (
-    <article>
+    <article className="journal-article">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
         }}
       />
-      <Container className="py-10 sm:py-14">
-        {issue && (
-          <Link
-            href={issuePath(issue)}
-            className="mb-6 inline-block text-sm text-muted-foreground"
-          >
-            Vol. {issue.volume} | No. {issue.number} · {issue.label}
-          </Link>
-        )}
+      <Container className="article-container">
+        <nav className="article-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/issues">Archive</Link>
+          {issue && <><span aria-hidden="true">/</span><Link href={issuePath(issue)}>Vol. {issue.volume}, No. {issue.number} · {issue.label}</Link></>}
+          <span aria-hidden="true">/</span><span aria-current="page">{post.articleCode || "Article"}</span>
+        </nav>
+        <header className="journal-article-heading">
+          <Kicker>{post.articleType || "Research Article"}</Kicker>
+          <h1>{post.title}</h1>
+          <p className="article-deck">{post.excerpt}</p>
+          <div className="article-meta-row">
+            <div className="article-byline">
+              <p className="article-author">By {post.author}</p>
+              <p>Published <time dateTime={post.publishedAt || undefined}>{formatDate(post.publishedAt)}</time>{post.articleCode ? ` · ${post.articleCode}` : ""} · {post.readingTime} min read</p>
+            </div>
+            <ShareActions slug={post.slug} citations={citations} />
+          </div>
+          {issue && (
+            <a
+              className="mt-4 inline-block text-xs underline print:hidden"
+              href={`${issuePath(issue)}/download`}
+              download
+            >
+              Download entire issue (PDF)
+            </a>
+          )}
+        </header>
         <div className="journal-article-grid">
-          <div>
-            <header className="journal-article-heading">
-              <Kicker>{post.articleType || "Research Article"}</Kicker>
-              <h1>{post.title}</h1>
-              <p className="article-deck">{post.excerpt}</p>
-              <p className="article-byline">
-                {post.author}
-                <br />
-                Published {formatDate(post.publishedAt)}
-                {post.articleCode ? ` · ${post.articleCode}` : ""} ·{" "}
-                {post.readingTime} min read
-              </p>
-              <ShareActions slug={post.slug} citations={citations} />
-              {issue && (
-                <a
-                  className="mt-4 inline-block text-xs underline print:hidden"
-                  href={`${issuePath(issue)}/download`}
-                  download
-                >
-                  Download entire issue (PDF)
-                </a>
-              )}
-            </header>
+          <div className="article-reading-column">
+            <ArticleAtAGlance summary={features.atAGlance} />
+            <details className="article-mobile-contents print:hidden">
+              <summary>In this article</summary>
+              <ArticleNavigation headings={headings} hasSources={references.length > 0} />
+            </details>
             {post.coverImage && (
               <figure className="mb-10">
                 <div className="relative aspect-[16/9] overflow-hidden bg-muted">
@@ -148,25 +153,26 @@ export default async function ArticlePage({ params }: Props) {
                 </div>
               </figure>
             )}
-            <ArticleBody content={post.content} />
+            <ArticleBody content={post.content} citationIds={references.map((reference) => reference.id)} evidenceLadder={features.evidenceLadder} />
             <SourceList citations={references} />
             <section
               id="cite-this-article"
-              className="mt-12 border-t border-border pt-6"
+              className="article-citation"
             >
-              <Kicker>Cite this article</Kicker>
+              <h2 className="font-serif text-2xl">Cite this article</h2>
               <p className="mt-4 text-sm leading-7">{citations.vancouver}</p>
               <p className="mt-5 text-xs leading-6 text-muted-foreground">
                 This article explains published research for a general audience.
-                It is not medical advice. Articles licensed under CC BY-NC-ND
-                4.0.
+                It is not medical advice. Articles licensed under{" "}
+                <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" className="underline">CC BY-NC-ND 4.0</a>.
               </p>
               <p className="mt-3 text-xs text-muted-foreground">
-                Last updated {formatDate(post.updatedAt)}.
+                Last updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>.{" "}
+                <Link href="/corrections" className="underline">Report a correction</Link>.
               </p>
             </section>
             {post.tags.length > 0 && (
-              <div className="mt-8 flex flex-wrap gap-2">
+              <div className="mt-8 flex flex-wrap gap-2 print:hidden" aria-label="Article topics">
                 {post.tags.map((tag) => (
                   <Link
                     key={tag}
@@ -180,32 +186,8 @@ export default async function ArticlePage({ params }: Props) {
             )}
           </div>
           <aside className="journal-article-aside print:hidden">
-            <div className="space-y-8 lg:sticky lg:top-8">
-              {headings.length > 0 && (
-                <section>
-                  <Kicker>In this article</Kicker>
-                  <ol className="mt-4 space-y-3 border-l border-border">
-                    {headings.map((heading) => (
-                      <li key={heading.id}>
-                        <a
-                          href={`#${heading.id}`}
-                          className="block pl-4 text-sm leading-6 text-muted-foreground hover:text-foreground"
-                        >
-                          {heading.text}
-                        </a>
-                      </li>
-                    ))}
-                    <li>
-                      <a
-                        href="#cite-this-article"
-                        className="block pl-4 text-sm"
-                      >
-                        Cite this article
-                      </a>
-                    </li>
-                  </ol>
-                </section>
-              )}
+            <div className="article-aside-inner">
+              <div className="article-desktop-contents"><ArticleNavigation headings={headings} hasSources={references.length > 0} title={post.title} /></div>
               {related.length > 0 && (
                 <section>
                   <Kicker>
@@ -225,11 +207,11 @@ export default async function ArticlePage({ params }: Props) {
                   </ul>
                 </section>
               )}
-              <section className="border-t border-border pt-6">
+              <section className="article-newsletter">
                 <p className="mb-5 font-serif text-xl">
                   Get each article the day it’s published.
                 </p>
-                <SubscribeForm />
+                <SubscribeForm showLabel buttonLabel="Subscribe free" />
               </section>
             </div>
           </aside>

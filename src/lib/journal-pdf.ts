@@ -6,10 +6,13 @@ import sharp from "sharp";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { splitContent } from "@/lib/content";
+import { articleFeatures, evidencePlacement } from "@/lib/article-features";
+import { extractHeadings } from "@/lib/headings";
 import { CITATIONS_BY_SLUG } from "@/lib/citations";
 import { formatDate, publicationUrl, site } from "@/lib/site";
 import { journalCitations, type JournalIssue } from "@/lib/issues";
-import type { Post } from "@/lib/types";
+import { issueCoverImage, issueCoverDescription } from "@/lib/issue-cover";
+import { EVIDENCE_STAGES, type EvidenceLadder, type Post } from "@/lib/types";
 
 type Node = {
   type: string;
@@ -24,10 +27,10 @@ type Node = {
 };
 const parse = (source: string) =>
   unified().use(remarkParse).use(remarkGfm).parse(source) as Node;
-const INK = "#14203A",
-  NAVY = "#0D1E3F",
-  TEAL = "#2C797C",
-  PAPER = "#FBF9F4";
+const INK = "#141A2E",
+  NAVY = "#0E1C3B",
+  TEAL = "#1C6670",
+  PAPER = "#F5F1E8";
 const clean = (value: string) =>
   value.replace(/\[\^(\d+)\]/g, "[$1]").replace(/[\u200b-\u200d\ufeff]/g, "");
 function inline(node: Node): string {
@@ -106,7 +109,8 @@ export async function journalPdf(
   articleOnly = false,
 ): Promise<Buffer> {
   const sources = new Set<string>();
-  if (issue?.coverImage) sources.add(issue.coverImage);
+  const coverImage = issue ? issueCoverImage(issue) : null;
+  if (coverImage) sources.add(coverImage);
   if (!contentsOnly)
     for (const post of posts) {
       if (post.coverImage) sources.add(post.coverImage);
@@ -212,9 +216,11 @@ export async function journalPdf(
     doc.x = 54;
     doc.moveDown();
   }
+  let beforeSection = () => {};
   async function render(node: Node, indent = "") {
     switch (node.type) {
       case "heading":
+        if (node.depth === 2) beforeSection();
         heading(
           inline(node),
           node.depth === 1 ? 23 : node.depth === 2 ? 19 : 14,
@@ -267,6 +273,25 @@ export async function journalPdf(
         for (const child of node.children || []) await render(child, indent);
     }
   }
+  function renderLadder(ladder: EvidenceLadder) {
+    room(290);
+    heading("The evidence ladder", 16);
+    text(ladder.subject, 11, true);
+    const top = doc.y + 8;
+    const stepWidth = width / EVIDENCE_STAGES.length;
+    EVIDENCE_STAGES.forEach((stage, index) => {
+      const height = 30 + index * 16;
+      const x = 54 + stepWidth * index;
+      const selected = stage === ladder.stage;
+      doc.rect(x, top + 94 - height, stepWidth - 4, height).fill(selected ? TEAL : "#D8E5EB");
+      doc.font("Times-Bold").fontSize(8).fillColor(INK).text(stage, x, top + 102, { width: stepWidth - 6 });
+      if (selected) doc.fontSize(8).fillColor(TEAL).text("Main evidence", x, top + 137, { width: stepWidth - 6 });
+    });
+    doc.x = 54;
+    doc.y = top + 163;
+    text(ladder.caption, 10);
+    text("Study design and quality matter at every stage. Regulatory approval is a separate assessment for a specific use.", 9);
+  }
   if (issue && !contentsOnly && !articleOnly) {
     doc
       .font("Helvetica")
@@ -281,8 +306,11 @@ export async function journalPdf(
     text(site.tagline, 16);
     text(`Volume ${issue.volume}, Number ${issue.number} · ${issue.label}`, 12);
     const y = doc.y + 14;
-    if (issue.coverImage && images.get(issue.coverImage)) {
-      doc.image(images.get(issue.coverImage)!, 54, y, { cover: [width, 190] });
+    if (coverImage && images.get(coverImage)) {
+      doc.save().rect(54, y, width * 0.2, 190).fill("#1B2A55");
+      doc.rect(54 + width * 0.2, y, width * 0.8, 190).clip();
+      doc.image(images.get(coverImage)!, 54 + width * 0.2, y, { cover: [width * 0.8, 190] });
+      doc.restore();
     } else {
       doc
         .save()
@@ -307,11 +335,10 @@ export async function journalPdf(
         "Below the headlines, into the evidence. This issue brings together published articles and their sources. Read the research, consider its limits, and follow the evidence at your own pace.",
       12,
     );
-    text(`${issue.editorName}, Editor`, 11);
+    text(`${issue.editorName === site.name ? "TJ" : issue.editorName}, Editor`, 11);
     heading("About the cover", 16);
     text(
-      issue.coverDescription ||
-        "The issue cover introduces this month’s articles.",
+      issueCoverDescription(issue),
       10,
     );
     doc.addPage();
@@ -345,9 +372,29 @@ export async function journalPdf(
         `${post.author} · Published ${formatDate(post.publishedAt)}${post.articleCode ? ` · ${post.articleCode}` : ""} · ${post.readingTime} min read`,
         10,
       );
+      const features = articleFeatures(post);
+      if (features.atAGlance) {
+        heading("At a glance", 16);
+        for (const [label, body] of [["What we know", features.atAGlance.known], ["What we don’t know", features.atAGlance.unknown], ["What to watch", features.atAGlance.watch]]) {
+          text(label, 10, true);
+          text(body, 10);
+        }
+      }
       if (post.coverImage) await image(post.coverImage, "");
+      const placement = evidencePlacement(post.content, features.evidenceLadder);
+      const headingIds = extractHeadings(post.content).map((heading) => heading.id);
+      let headingIndex = 0;
+      beforeSection = () => {
+        const id = headingIds[headingIndex++];
+        if (features.evidenceLadder && placement.before === id) renderLadder(features.evidenceLadder);
+      };
+      if (features.evidenceLadder && placement.start) renderLadder(features.evidenceLadder);
       for (const block of splitContent(post.content)) {
-        if (block.type === "markdown") await render(parse(block.content));
+        if (block.type === "markdown") {
+          for (const node of parse(block.content).children || []) {
+            await render(node);
+          }
+        }
         else {
           heading(block.spec.title, 17);
           if (block.spec.description) text(block.spec.description);
@@ -378,6 +425,7 @@ export async function journalPdf(
           ]);
         }
       }
+      if (features.evidenceLadder && placement.end) renderLadder(features.evidenceLadder);
       const references = CITATIONS_BY_SLUG[post.slug] || [];
       if (references.length) {
         heading("References", 21);

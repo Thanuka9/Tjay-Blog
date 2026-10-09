@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Newsletter",
   alternates: { canonical: "/newsletter" },
   description:
-    "One issue a month. Four articles. Free. Get The Abyss in your inbox when each article is published.",
+    "One issue a month. Two articles. Free. Get The Abyss in your inbox when each article is published.",
 };
 
 export default function SubscribePage() {
@@ -18,7 +18,7 @@ export default function SubscribePage() {
           <h1 className="mt-3 font-serif text-4xl tracking-tight sm:text-5xl">
             One issue a month.
             <br />
-            Four articles. Free.
+            Two articles. Free.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
             Get each article when it is published, with sources you can follow
@@ -31,12 +31,12 @@ export default function SubscribePage() {
             <li>Unsubscribe anytime.</li>
           </ul>
         </div>
-        <div className="rounded-xl border border-border bg-card p-6 sm:p-8 lg:col-span-6">
+        <div className="border border-border bg-card p-6 sm:p-8 lg:col-span-6">
           <p className="font-serif text-2xl">Get the next issue</p>
           <p className="mt-2 mb-6 text-sm text-muted-foreground">
             The next piece lands here first.
           </p>
-          <SubscribeForm />
+          <SubscribeForm showLabel />
         </div>
       </div>
     </Container>

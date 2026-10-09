@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ARTICLE_TYPES } from "@/lib/types";
+import { ARTICLE_TYPES, EVIDENCE_STAGES } from "@/lib/types";
 import {
   clearSessionCookie,
   isValidPassword,
@@ -55,7 +55,23 @@ const postSchema = z.object({
     .nullable()
     .optional(),
   citation: z.string().optional(),
+  atAGlance: z.object({
+    known: z.string().trim().min(1, "Complete What we know").max(1200),
+    unknown: z.string().trim().min(1, "Complete What we don’t know").max(1200),
+    watch: z.string().trim().min(1, "Complete What to watch").max(1200),
+  }).nullable().optional(),
+  evidenceLadder: z.object({
+    subject: z.string().trim().min(1, "Give the evidence ladder a subject").max(160),
+    stage: z.enum(EVIDENCE_STAGES),
+    caption: z.string().trim().min(1, "Write an evidence caption").max(1600),
+    afterHeading: z.string().max(300).optional(),
+  }).nullable().optional(),
 });
+
+function formJson(form: FormData, name: string): unknown {
+  if (!form.has(name)) return undefined;
+  try { return JSON.parse(String(form.get(name))); } catch { return "Invalid JSON"; }
+}
 
 export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
@@ -96,6 +112,8 @@ export async function savePostAction(formData: FormData) {
     sequence: formData.get("sequence") || undefined,
     articlePdf: formData.get("articlePdf") || null,
     citation: formData.get("citation") || undefined,
+    atAGlance: formJson(formData, "atAGlance"),
+    evidenceLadder: formJson(formData, "evidenceLadder"),
   });
 
   if (!parsed.success) {

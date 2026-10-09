@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { ChartBlock } from "@/components/article/ChartBlock";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -38,6 +39,13 @@ export function ChartBuilder({
   onOpenChange: (open: boolean) => void;
   onInsert: (block: string) => void;
 }) {
+  return open ? <ChartBuilderDialog onOpenChange={onOpenChange} onInsert={onInsert} /> : null;
+}
+
+function ChartBuilderDialog({ onOpenChange, onInsert }: {
+  onOpenChange: (open: boolean) => void;
+  onInsert: (block: string) => void;
+}) {
   const [title, setTitle] = useState("Untitled chart");
   const [description, setDescription] = useState("");
   const [unit, setUnit] = useState("");
@@ -57,27 +65,6 @@ export function ChartBuilder({
   const [height, setHeight] = useState("288");
   const [series2, setSeries2] = useState("Series 2");
   const [series3, setSeries3] = useState("Series 3");
-
-  useEffect(() => {
-    if (!open) return;
-    setTitle("Untitled chart");
-    setDescription("");
-    setUnit("");
-    setType("bar");
-    setRows("Collagen peptides, 7\nBPC-157, 2\nGHK-Cu injectable, 1.5");
-    setColors([...DEFAULT_CHART_COLORS]);
-    setShowGrid(true);
-    setShowLegend(false);
-    setShowValues(false);
-    setShowDots(true);
-    setCurved(true);
-    setStacked(false);
-    setYMin("");
-    setYMax("");
-    setHeight("288");
-    setSeries2("Series 2");
-    setSeries3("Series 3");
-  }, [open]);
 
   const spec = useMemo(() => {
     const data = parseChartRows(rows);
@@ -130,18 +117,19 @@ export function ChartBuilder({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Insert chart</DialogTitle>
+          <DialogDescription>Choose a chart type, enter your data, and preview it before inserting.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label htmlFor="chart-type">Type</Label>
                 <Select value={type} onValueChange={(value) => setType(value as ChartType)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="chart-type" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -296,10 +284,11 @@ function Toggle({
   checked: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const id = useId();
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-      <Label className="font-normal">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Label htmlFor={id} className="font-normal">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

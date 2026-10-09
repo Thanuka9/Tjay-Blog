@@ -1,36 +1,16 @@
+import Link from "next/link";
 import { Container, Kicker } from "@/components/site/layout";
+import { site } from "@/lib/site";
+
 export const metadata = { title: "Editorial standards" };
 export default function EditorialStandardsPage() {
   return (
-    <Container className="py-14">
-      <Kicker>The publication</Kicker>
-      <h1 className="mt-4 font-serif text-5xl">Editorial standards</h1>
-      <div className="journal-policy">
-        <h2>Follow the sources</h2>
-        <p>
-          Articles link to the research they discuss and include references so
-          readers can check the evidence. We distinguish laboratory and animal
-          work from human studies, and early findings from established results.
-        </p>
-        <h2>Describe uncertainty</h2>
-        <p>
-          We describe study limitations, relevant conflicts of interest, and the
-          difference between a measured outcome and a marketing claim.
-          Regulatory status is reported with its source and publication context.
-        </p>
-        <h2>Keep articles and downloads aligned</h2>
-        <p>
-          Online articles and generated PDFs use the same content. Editor
-          corrections are reflected in subsequent downloads. Articles explain
-          research for a general audience and do not provide personal medical
-          advice.
-        </p>
-        <h2>Correct the record</h2>
-        <p>
-          When an error is identified, the editor reviews the sources, corrects
-          the article, and records material changes in the article text. Use the
-          Corrections page to report an error.
-        </p>
+    <Container className="publication-page">
+      <Kicker>About The Abyss</Kicker>
+      <h1>Editorial standards</h1>
+      <p className="publication-deck">How articles in The Abyss are sourced, checked and corrected.</p>
+      <div className="publication-copy">
+        <p>The Abyss explains published research to general readers. We do not conduct original research, and nothing we publish is medical advice. Every factual claim in an article is tied to a peer-reviewed study, a regulatory document, or a named expert, and each article closes with a numbered, linked reference list so readers can check the source themselves. The Abyss is free to read and takes no advertising or sponsorship from makers of drugs, supplements or devices. Before publication, each article is checked line by line against its sources by a second reader. When we get something wrong, we correct it in place, add a dated note to the article, and record it on our <Link href="/corrections">Corrections</Link> page; readers can report an error at <a href={`mailto:${site.correctionsEmail}`}>{site.correctionsEmail}</a>.</p>
       </div>
     </Container>
   );

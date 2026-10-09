@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Container, Kicker } from "@/components/site/layout";
+import { site } from "@/lib/site";
 export const metadata = { title: "Corrections" };
 export default function CorrectionsPage() {
-  const email = process.env.EDITORIAL_EMAIL;
+  const email = process.env.EDITORIAL_EMAIL || site.correctionsEmail;
   return (
     <Container className="py-14">
       <Kicker>The publication</Kicker>
