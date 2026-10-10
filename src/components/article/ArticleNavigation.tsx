@@ -11,7 +11,6 @@ export function ArticleNavigation({ headings, hasSources, title }: {
     <ol>
       {headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`}>{heading.text}</a></li>)}
       {hasSources && <li><a href="#sources-heading">References</a></li>}
-      <li><a href="#cite-this-article">Cite this article</a></li>
     </ol>
   </nav>;
 }

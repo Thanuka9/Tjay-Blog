@@ -82,7 +82,6 @@ export default async function IssuePage(props: Props) {
           <section id="about-the-cover" className="about-the-cover">
             <Kicker>About the cover</Kicker>
             <p>{issueCoverDescription(issue)}</p>
-            <p className="issue-citation">How to cite: Author. Article title. {site.name}. {issue.year};{issue.volume}({issue.number}):article number.</p>
           </section>
         </div>
       </div>

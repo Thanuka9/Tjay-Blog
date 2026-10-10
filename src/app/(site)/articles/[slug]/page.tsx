@@ -18,7 +18,7 @@ import {
   listPublishedIssues,
   listPublishedPosts,
 } from "@/lib/store";
-import { issuePath, journalCitations } from "@/lib/issues";
+import { issuePath } from "@/lib/issues";
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -62,7 +62,6 @@ export default async function ArticlePage({ params }: Props) {
   const references = post.references ?? CITATIONS_BY_SLUG[slug] ?? [];
   const features = articleFeatures(post);
   const headings = extractHeadings(post.content);
-  const citations = journalCitations(post, issue);
   const related = issue
     ? issue.posts.filter((item) => item.id !== post.id)
     : (await listPublishedPosts())
@@ -155,13 +154,8 @@ export default async function ArticlePage({ params }: Props) {
             )}
             <ArticleBody content={post.content} citationIds={references.map((reference) => reference.id)} evidenceLadder={features.evidenceLadder} />
             <SourceList citations={references} />
-            <section
-              id="cite-this-article"
-              className="article-citation"
-            >
-              <h2 className="font-serif text-2xl">Cite this article</h2>
-              <p className="mt-4 text-sm leading-7">{citations.vancouver}</p>
-              <p className="mt-5 text-xs leading-6 text-muted-foreground">
+            <section className="article-citation">
+              <p className="text-xs leading-6 text-muted-foreground">
                 This article explains published research for a general audience.
                 It is not medical advice.
               </p>
