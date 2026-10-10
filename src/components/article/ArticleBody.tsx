@@ -22,20 +22,14 @@ const components: Components = {
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="article-subheading">
-      {children}
-    </h3>
+    <h3 className="article-subheading">{children}</h3>
   ),
   p: ({ children, node }) => {
     const hasImage = node?.children?.some(
       (child) => child.type === "element" && child.tagName === "img",
     );
     if (hasImage) return <>{children}</>;
-    return (
-      <p className="article-paragraph">
-        {children}
-      </p>
-    );
+    return <p className="article-paragraph">{children}</p>;
   },
   strong: ({ children }) => (
     <strong className="font-semibold text-foreground">{children}</strong>
@@ -60,22 +54,18 @@ const components: Components = {
           />
         </span>
         {title || alt ? (
-          <figcaption className="mt-3 text-sm leading-6 text-muted-foreground">
-            {title || alt}
+          <figcaption className="mt-4 text-sm leading-[1.55] text-muted-foreground">
+            {alt ? (
+              <span className="font-semibold text-foreground">{alt}</span>
+            ) : null}
+            {alt && title ? " " : null}
+            {title || (!alt ? alt : null)}
           </figcaption>
         ) : null}
       </figure>
     ) : null,
-  ol: ({ children }) => (
-    <ol className="article-list list-decimal">
-      {children}
-    </ol>
-  ),
-  ul: ({ children }) => (
-    <ul className="article-list list-disc">
-      {children}
-    </ul>
-  ),
+  ol: ({ children }) => <ol className="article-list list-decimal">{children}</ol>,
+  ul: ({ children }) => <ul className="article-list list-disc">{children}</ul>,
   li: ({ children }) => <li className="pl-1">{children}</li>,
   a: ({ href, children }) => {
     const isCitation = Boolean(href?.startsWith("#ref-"));
@@ -104,10 +94,13 @@ const components: Components = {
     );
   },
   table: ({ children }) => (
-    <div className="article-table-scroll" role="region" aria-label="Article table" tabIndex={0}>
-      <table className="article-table">
-        {children}
-      </table>
+    <div
+      className="article-table-scroll"
+      role="region"
+      aria-label="Article table"
+      tabIndex={0}
+    >
+      <table className="article-table">{children}</table>
     </div>
   ),
   thead: ({ children }) => (
@@ -127,38 +120,77 @@ const components: Components = {
   hr: () => <hr className="my-10 border-border" />,
 };
 
-export function ArticleBody({ content, citationIds = [], evidenceLadder }: { content: string; citationIds?: number[]; evidenceLadder?: Ladder | null }) {
+export function ArticleBody({
+  content,
+  citationIds = [],
+  evidenceLadder,
+}: {
+  content: string;
+  citationIds?: number[];
+  evidenceLadder?: Ladder | null;
+}) {
   const placement = evidencePlacement(content, evidenceLadder);
-  const bodyComponents: Components = { ...components, h2: ({ children, node }) => <>
-    {evidenceLadder && placement.before === node?.properties.id && <EvidenceLadder ladder={evidenceLadder} />}
-    <h2 id={node?.properties.id as string | undefined} className="article-section-heading">{children}</h2>
-  </> };
+  const bodyComponents: Components = {
+    ...components,
+    h2: ({ children, node }) => (
+      <>
+        {evidenceLadder && placement.before === node?.properties.id && (
+          <EvidenceLadder ladder={evidenceLadder} />
+        )}
+        <h2
+          id={node?.properties.id as string | undefined}
+          className="article-section-heading"
+        >
+          {children}
+        </h2>
+      </>
+    ),
+  };
   const headingIds = extractHeadings(content).map((heading) => heading.id);
   const contentBlocks = splitContent(content);
-  const headingOffsets = contentBlocks.reduce<number[]>((offsets, block) =>
-    [...offsets, offsets[offsets.length - 1] + (block.type === "markdown" ? extractHeadings(block.content).length : 0)], [0]);
+  const headingOffsets = contentBlocks.reduce<number[]>(
+    (offsets, block) => [
+      ...offsets,
+      offsets[offsets.length - 1] +
+        (block.type === "markdown" ? extractHeadings(block.content).length : 0),
+    ],
+    [0],
+  );
   const blocks = contentBlocks.map((block, index) => {
     if (block.type === "chart") return { ...block, headingIds: [] };
-    return { ...block, headingIds: headingIds.slice(headingOffsets[index], headingOffsets[index + 1]) };
+    return {
+      ...block,
+      headingIds: headingIds.slice(
+        headingOffsets[index],
+        headingOffsets[index + 1],
+      ),
+    };
   });
 
   return (
     <div className="article-prose">
-      {evidenceLadder && placement.start && <EvidenceLadder ladder={evidenceLadder} />}
+      {evidenceLadder && placement.start && (
+        <EvidenceLadder ladder={evidenceLadder} />
+      )}
       {blocks.map((block, index) =>
         block.type === "chart" ? (
           <ChartBlock key={`chart-${index}`} spec={block.spec} />
         ) : (
           <Markdown
             key={`md-${index}`}
-            remarkPlugins={[remarkGfm, [remarkArticle, { headingIds: block.headingIds, citationIds }]]}
+            remarkPlugins={[
+              remarkGfm,
+              [remarkArticle, { headingIds: block.headingIds, citationIds }],
+            ]}
             components={bodyComponents}
           >
             {block.content}
           </Markdown>
         ),
       )}
-      {evidenceLadder && placement.end && <EvidenceLadder ladder={evidenceLadder} />}
+      {evidenceLadder && placement.end && (
+        <EvidenceLadder ladder={evidenceLadder} />
+      )}
     </div>
   );
 }

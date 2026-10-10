@@ -3,23 +3,30 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleBody } from "@/components/article/ArticleBody";
 import { ArticleAtAGlance } from "@/components/article/ArticleFeatures";
+import { ArticleDiscussion } from "@/components/article/ArticleDiscussion";
 import { articleFeatures } from "@/lib/article-features";
 import { ArticleNavigation } from "@/components/article/ArticleNavigation";
 import { SourceList } from "@/components/article/SourceList";
-import { CoverMedia } from "@/components/site/CoverMedia";
 import { Container, Kicker } from "@/components/site/layout";
 import { ShareActions } from "@/components/site/ShareActions";
 import { SubscribeForm } from "@/components/site/SubscribeForm";
 import { CITATIONS_BY_SLUG } from "@/lib/citations";
 import { extractHeadings } from "@/lib/headings";
-import { formatDate, publicationUrl, site } from "@/lib/site";
-import {
-  getPostBySlug,
-  listPublishedIssues,
-  listPublishedPosts,
-} from "@/lib/store";
+import { publicationUrl, site } from "@/lib/site";
+import { getPostBySlug, listPublishedIssues } from "@/lib/store";
 import { issuePath } from "@/lib/issues";
+
 type Props = { params: Promise<{ slug: string }> };
+
+function shortDate(iso: string | null) {
+  if (!iso) return "Unpublished";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
@@ -50,23 +57,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
   };
 }
+
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const original = await getPostBySlug(slug);
   if (!original || original.status !== "published" || !original.publishedAt) notFound();
+
   const issues = await listPublishedIssues();
-  const issue = issues.find((issue) =>
-    issue.posts.some((post) => post.id === original.id),
+  const issue = issues.find((item) =>
+    item.posts.some((post) => post.id === original.id),
   );
-  const post = issue?.posts.find((post) => post.id === original.id) || original;
+  const post = issue?.posts.find((item) => item.id === original.id) || original;
   const references = post.references ?? CITATIONS_BY_SLUG[slug] ?? [];
   const features = articleFeatures(post);
   const headings = extractHeadings(post.content);
-  const related = issue
-    ? issue.posts.filter((item) => item.id !== post.id)
-    : (await listPublishedPosts())
-        .filter((item) => item.id !== post.id && item.topic === post.topic)
-        .slice(0, 3);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -97,6 +102,7 @@ export default async function ArticlePage({ params }: Props) {
       : undefined,
     citation: references.map((ref) => ref.url).filter(Boolean),
   };
+
   return (
     <article className="journal-article">
       <script
@@ -106,109 +112,85 @@ export default async function ArticlePage({ params }: Props) {
         }}
       />
       <Container className="article-container">
-        <nav className="article-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/issues">Archive</Link>
-          {issue && <><span aria-hidden="true">/</span><Link href={issuePath(issue)}>Vol. {issue.volume}, No. {issue.number} · {issue.label}</Link></>}
-          <span aria-hidden="true">/</span><span aria-current="page">{post.articleCode || "Article"}</span>
-        </nav>
+        {issue ? (
+          <p className="article-breadcrumb">
+            <Link href={issuePath(issue)}>
+              Vol. {issue.volume} | No. {issue.number} · {issue.label}
+            </Link>
+          </p>
+        ) : null}
+
         <header className="journal-article-heading">
           <Kicker>{post.articleType || "Research Article"}</Kicker>
           <h1>{post.title}</h1>
           <p className="article-deck">{post.excerpt}</p>
           <div className="article-meta-row">
             <div className="article-byline">
-              <p className="article-author">By {post.author}</p>
-              <p>Published <time dateTime={post.publishedAt || undefined}>{formatDate(post.publishedAt)}</time>{post.articleCode ? ` · ${post.articleCode}` : ""} · {post.readingTime} min read</p>
+              <p className="article-author">{post.author}</p>
+              <p>
+                Published{" "}
+                <time dateTime={post.publishedAt || undefined}>
+                  {shortDate(post.publishedAt)}
+                </time>
+                {post.articleCode ? ` · ${post.articleCode}` : ""} · {post.readingTime} min read
+              </p>
             </div>
             <ShareActions slug={post.slug} />
           </div>
-          {issue && (
-            <a
-              className="mt-4 inline-block text-xs underline print:hidden"
-              href={`${issuePath(issue)}/download`}
-              download
-            >
-              Download entire issue (PDF)
-            </a>
-          )}
         </header>
+
         <div className="journal-article-grid">
           <div className="article-reading-column">
             <ArticleAtAGlance summary={features.atAGlance} abstract={post.abstract} />
+
             <details className="article-mobile-contents print:hidden">
               <summary>In this article</summary>
               <ArticleNavigation headings={headings} hasSources={references.length > 0} />
             </details>
-            {post.coverImage && (
-              <figure className="mb-10">
-                <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                  <CoverMedia
-                    src={post.coverImage}
-                    alt={post.title}
-                    className="object-cover"
-                    sizes="(min-width: 1024px) 700px, 100vw"
-                    priority
-                  />
-                </div>
-              </figure>
-            )}
-            <ArticleBody content={post.content} citationIds={references.map((reference) => reference.id)} evidenceLadder={features.evidenceLadder} />
+
+            <ArticleBody
+              content={post.content}
+              citationIds={references.map((reference) => reference.id)}
+              evidenceLadder={features.evidenceLadder}
+            />
             <SourceList citations={references} />
-            <section className="article-citation">
-              <p className="text-xs leading-6 text-muted-foreground">
-                This article explains published research for a general audience.
-                It is not medical advice.
-              </p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Last updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>.{" "}
-                <Link href="/corrections" className="underline">Report a correction</Link>.
-              </p>
-            </section>
-            {post.tags.length > 0 && (
-              <div className="mt-8 flex flex-wrap gap-2 print:hidden" aria-label="Article topics">
-                {post.tags.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/search?q=${encodeURIComponent(tag)}`}
-                    className="border border-border px-3 py-1 text-xs text-muted-foreground"
-                  >
-                    {tag}
-                  </Link>
-                ))}
-              </div>
-            )}
+            <ArticleDiscussion storageKey={post.articleCode || post.slug} />
           </div>
+
           <aside className="journal-article-aside print:hidden">
-            <div className="article-aside-inner">
-              <div className="article-desktop-contents"><ArticleNavigation headings={headings} hasSources={references.length > 0} title={post.title} /></div>
-              {related.length > 0 && (
-                <section>
-                  <Kicker>
-                    {issue ? "Also in this issue" : "Related articles"}
-                  </Kicker>
-                  <ul className="mt-4 space-y-4">
-                    {related.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          href={`/articles/${item.slug}`}
-                          className="font-serif text-lg leading-snug hover:text-brand"
-                        >
-                          {item.title}
-                        </Link>
-                      </li>
+            <div className="flex flex-col gap-6">
+              <div
+                className="article-desktop-contents"
+                style={{
+                  maxHeight: "none",
+                  overflow: "visible",
+                  borderTopWidth: "4px",
+                  padding: "22px 24px",
+                }}
+              >
+                <ArticleNavigation
+                  headings={headings}
+                  hasSources={references.length > 0}
+                  title={post.title}
+                />
+              </div>
+
+              {!!issue?.upcomingArticles?.length && (
+                <section className="article-coming-up px-1">
+                  <Kicker>Coming up</Kicker>
+                  <ul>
+                    {issue.upcomingArticles.map((item) => (
+                      <li key={item.articleCode}>{item.title}</li>
                     ))}
                   </ul>
                 </section>
               )}
-              {!!issue?.upcomingArticles?.length && <section className="article-coming-up">
-                <Kicker>Coming up</Kicker>
-                <ul>{issue.upcomingArticles.map((item) => <li key={item.articleCode}>{item.title}</li>)}</ul>
-              </section>}
-              <section className="article-newsletter">
-                <p className="mb-5 font-serif text-xl">
-                  Get each article the day it’s published.
+
+              <section className="article-newsletter" style={{ padding: "22px 24px" }}>
+                <p className="mb-5 font-serif text-xl leading-[1.3] text-white">
+                  Get each article the day it&apos;s published.
                 </p>
-                <SubscribeForm showLabel buttonLabel="Subscribe free" />
+                <SubscribeForm showLabel buttonLabel="Subscribe free" inverse />
               </section>
             </div>
           </aside>

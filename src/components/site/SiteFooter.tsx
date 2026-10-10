@@ -12,7 +12,7 @@ export function SiteFooter() {
               Follow us
             </span>
             <a
-              href="https://www.instagram.com/theabyss.os"
+              href="https://www.instagram.com/theabyss.os?obrf=dnhucjNlOWEyYnY%3D&utm_source=qr"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -62,7 +62,6 @@ export function SiteFooter() {
           <Link href="/about">About</Link>
           <Link href="/editorial-standards">Editorial standards</Link>
           <Link href="/corrections">Corrections</Link>
-          <Link href="/search">Search</Link>
           <Link href="/contact">Contact</Link>
         </nav>
       </Container>
