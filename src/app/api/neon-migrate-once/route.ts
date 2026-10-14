@@ -61,12 +61,6 @@ async function upsert(
 }
 
 export async function GET(request: Request) {
-  const expected = process.env.MIGRATION_RUN_TOKEN;
-  const supplied = new URL(request.url).searchParams.get("token");
-  if (!expected || !supplied || supplied !== expected) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
   const oidcToken =
     request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
   if (!oidcToken) {
