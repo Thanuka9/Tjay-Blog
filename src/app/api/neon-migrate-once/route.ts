@@ -1,3 +1,4 @@
+// One-time migration route. Delete immediately after Neon cutover QA passes.
 import { get, list } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
