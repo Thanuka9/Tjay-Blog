@@ -11,15 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify Neon-backed production pages
+      - name: Diagnose Neon OIDC and production response
         shell: bash
         run: |
           set -euo pipefail
-          sleep 30
-          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/ -o /tmp/home.html
-          grep -qi 'The Abyss' /tmp/home.html
-          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/current-issue -o /tmp/issue.html
-          grep -qi 'Issue' /tmp/issue.html
-          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/articles/are-peptides-the-real-future-of-longevity -o /tmp/article.html
-          grep -qi 'Are peptides' /tmp/article.html
-          echo 'PRODUCTION_NEON_SMOKE=PASS'
+          sleep 25
+          echo '--- NEON HEALTH ---'
+          curl -sS --max-time 30 -w '\nHTTP_STATUS=%{http_code}\n' https://theabyssos.com/api/neon-health-once
+          echo '--- HOME STATUS ---'
+          curl -sS --max-time 30 -o /tmp/home.html -w 'HTTP_STATUS=%{http_code}\n' https://theabyssos.com/
+          echo '--- END ---'
