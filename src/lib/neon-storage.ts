@@ -1,9 +1,8 @@
 import "server-only";
+import { AwsClient } from "aws4fetch";
 
 const DEFAULT_ENDPOINT =
   "https://br-proud-unit-b70xhjbq.storage.c-13.us-east-1.aws.neon.tech";
-const DEFAULT_PROXY =
-  "https://br-proud-unit-b70xhjbq-storageproxy.compute.c-13.us-east-1.aws.neon.tech/";
 const DEFAULT_BUCKET = "the-abyss-media";
 
 function endpoint() {
@@ -14,15 +13,18 @@ function bucket() {
   return process.env.NEON_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
 }
 
-function proxyConfig() {
-  const url = (process.env.NEON_STORAGE_PROXY_URL?.trim() || DEFAULT_PROXY).replace(/\/$/, "");
-  const token =
-    process.env.NEON_STORAGE_PROXY_TOKEN?.trim() ||
-    process.env.MIGRATION_RUN_TOKEN?.trim();
-  if (!token) {
-    throw new Error("Neon storage proxy token is not configured.");
+function storageClient() {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("Neon Object Storage credentials are not configured.");
   }
-  return { url, token };
+  return new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: "s3",
+    region: process.env.AWS_REGION?.trim() || "us-east-1",
+  });
 }
 
 function encodedKey(key: string) {
@@ -42,20 +44,11 @@ export async function putNeonObject(
   body: Uint8Array | ArrayBuffer,
   contentType: string,
 ) {
-  const { url, token } = proxyConfig();
-  const payload: ArrayBuffer =
-    body instanceof ArrayBuffer
-      ? body
-      : (Uint8Array.from(body).buffer as ArrayBuffer);
-  const response = await fetch(url, {
+  const payload = body instanceof ArrayBuffer ? new Uint8Array(body) : body;
+  const response = await storageClient().fetch(neonObjectUrl(key), {
     method: "PUT",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": contentType,
-      "x-object-key": key,
-    },
+    headers: { "content-type": contentType },
     body: payload,
-    cache: "no-store",
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -63,19 +56,12 @@ export async function putNeonObject(
       `Neon Object Storage upload failed (${response.status}): ${detail.slice(0, 300)}`,
     );
   }
-  const result = (await response.json()) as { url?: string };
-  return result.url || neonObjectUrl(key);
+  return neonObjectUrl(key);
 }
 
 export async function deleteNeonObject(key: string) {
-  const { url, token } = proxyConfig();
-  const response = await fetch(url, {
+  const response = await storageClient().fetch(neonObjectUrl(key), {
     method: "DELETE",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-object-key": key,
-    },
-    cache: "no-store",
   });
   if (!response.ok && response.status !== 404) {
     const detail = await response.text();
