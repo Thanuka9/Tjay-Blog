@@ -1,4 +1,3 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { cookies } from "next/headers";
@@ -37,28 +36,10 @@ export async function POST(request: Request) {
   const fileName = `${nanoid(12)}.${safeExt}`;
   const folder = form.get("folder") === "covers" ? "covers" : "articles";
 
-  if (process.env.MEDIA_BACKEND === "neon") {
-    const url = await putNeonObject(
-      `${folder}/${fileName}`,
-      new Uint8Array(await file.arrayBuffer()),
-      type,
-    );
-    return NextResponse.json({ url });
-  }
-
-  const publicBlobToken = process.env.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim();
-  if (!publicBlobToken) {
-    return NextResponse.json(
-      { error: "Public Blob storage is not configured." },
-      { status: 500 },
-    );
-  }
-
-  const blob = await put(`tjay/uploads/${folder}/${fileName}`, file, {
-    access: "public",
-    contentType: type,
-    token: publicBlobToken,
-  });
-
-  return NextResponse.json({ url: blob.url });
+  const url = await putNeonObject(
+    `${folder}/${fileName}`,
+    new Uint8Array(await file.arrayBuffer()),
+    type,
+  );
+  return NextResponse.json({ url });
 }
