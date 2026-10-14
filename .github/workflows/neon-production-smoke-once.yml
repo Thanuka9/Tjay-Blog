@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify Neon-backed production pages
+      - name: Verify Neon-backed production pages after RPC grant
         shell: bash
         run: |
           set -euo pipefail
-          sleep 15
+          sleep 8
           health=$(curl -sSL --max-time 30 https://theabyssos.com/api/neon-health-once)
           printf '%s\n' "$health"
           printf '%s' "$health" | grep -q '"ok":true'
