@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify Neon-backed production pages after RPC grant
+      - name: Verify Neon-backed production after JWT subject fix
         shell: bash
         run: |
           set -euo pipefail
