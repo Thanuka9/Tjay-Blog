@@ -39,11 +39,20 @@ async function listAll(token: string, prefix: string) {
   } while (cursor);
   return rows;
 }
-async function upsert(table: string, rows: Record<string, unknown>[], conflict: string) {
+async function upsert(
+  oidcToken: string,
+  table: string,
+  rows: Record<string, unknown>[],
+  conflict: string,
+) {
   if (!rows.length) return;
   const response = await fetch(`${DATA_API}/${table}?on_conflict=${encodeURIComponent(conflict)}`, {
     method: "POST",
-    headers: { "content-type": "application/json", prefer: "resolution=merge-duplicates,return=minimal" },
+    headers: {
+      authorization: `Bearer ${oidcToken}`,
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
     body: JSON.stringify(rows),
     cache: "no-store",
   });
@@ -55,6 +64,12 @@ export async function GET(request: Request) {
   const supplied = new URL(request.url).searchParams.get("token");
   if (!expected || !supplied || supplied !== expected) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const oidcToken =
+    request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  if (!oidcToken) {
+    return NextResponse.json({ error: "Vercel OIDC token is unavailable." }, { status: 500 });
   }
 
   try {
@@ -101,30 +116,30 @@ export async function GET(request: Request) {
       });
     }
 
-    await upsert("articles", articleRows, "id");
-    await upsert("issues", issues.map((x) => ({
+    await upsert(oidcToken, "articles", articleRows, "id");
+    await upsert(oidcToken, "issues", issues.map((x) => ({
       id: x.id, volume: x.volume, number: x.number, month: x.month, year: x.year,
       cover_image: x.coverImage ?? null, editor_letter: x.editorLetter ?? "", editor_name: x.editorName,
       cover_description: x.coverDescription ?? "", full_issue_pdf: x.fullIssuePdf ?? null,
       status: x.status, upcoming_articles: x.upcomingArticles ?? [],
     })), "id");
-    await upsert("topics", topics.map((x) => ({
+    await upsert(oidcToken, "topics", topics.map((x) => ({
       slug: x.slug, name: x.name, description: x.description ?? "", sort_order: x.order ?? null,
     })), "slug");
-    await upsert("home_settings", [{
+    await upsert(oidcToken, "home_settings", [{
       singleton: true,
       source: home?.source === "selected" ? "selected" : "latest",
       post_ids: Array.isArray(home?.postIds) ? home.postIds : [],
     }], "singleton");
-    await upsert("subscribers", subscribers.map((x) => ({
+    await upsert(oidcToken, "subscribers", subscribers.map((x) => ({
       id: x.id, email: String(x.email).trim().toLowerCase(), created_at: x.createdAt,
       unsubscribe_token: x.unsubscribeToken || crypto.randomUUID(), unsubscribed_at: x.unsubscribedAt ?? null,
     })), "id");
-    await upsert("email_outbox", outbox.map((x) => ({
+    await upsert(oidcToken, "email_outbox", outbox.map((x) => ({
       id: x.id, recipient: x.to, subject: x.subject, kind: x.kind, status: x.status,
       error: x.error ?? null, created_at: x.createdAt,
     })), "id");
-    await upsert("media_assets", media.map((x) => ({
+    await upsert(oidcToken, "media_assets", media.map((x) => ({
       source_url: x.url,
       source_path: x.pathname,
       target_key: x.pathname.replace(/^tjay\/uploads\//, ""),
