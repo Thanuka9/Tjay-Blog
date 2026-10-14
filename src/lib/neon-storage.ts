@@ -1,42 +1,28 @@
 import "server-only";
 
-import { AwsClient } from "aws4fetch";
+const DEFAULT_ENDPOINT =
+  "https://br-proud-unit-b70xhjbq.storage.c-13.us-east-1.aws.neon.tech";
+const DEFAULT_PROXY =
+  "https://br-proud-unit-b70xhjbq-storageproxy.compute.c-13.us-east-1.aws.neon.tech/";
+const DEFAULT_BUCKET = "the-abyss-media";
 
-let client: AwsClient | null = null;
-
-type StorageConfig = {
-  endpoint: string;
-  region: string;
-  bucket: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-};
-
-function config(): StorageConfig {
-  const endpoint = process.env.AWS_ENDPOINT_URL_S3?.trim().replace(/\/$/, "");
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
-  const region = process.env.AWS_REGION?.trim() || "us-east-1";
-  const bucket = process.env.NEON_STORAGE_BUCKET?.trim() || "the-abyss-media";
-
-  if (!endpoint || !accessKeyId || !secretAccessKey) {
-    throw new Error(
-      "Neon Object Storage is not configured. Set AWS_ENDPOINT_URL_S3, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
-    );
-  }
-
-  return { endpoint, region, bucket, accessKeyId, secretAccessKey };
+function endpoint() {
+  return (process.env.AWS_ENDPOINT_URL_S3?.trim() || DEFAULT_ENDPOINT).replace(/\/$/, "");
 }
 
-function storageClient() {
-  const current = config();
-  client ??= new AwsClient({
-    accessKeyId: current.accessKeyId,
-    secretAccessKey: current.secretAccessKey,
-    service: "s3",
-    region: current.region,
-  });
-  return { client, current };
+function bucket() {
+  return process.env.NEON_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
+}
+
+function proxyConfig() {
+  const url = (process.env.NEON_STORAGE_PROXY_URL?.trim() || DEFAULT_PROXY).replace(/\/$/, "");
+  const token =
+    process.env.NEON_STORAGE_PROXY_TOKEN?.trim() ||
+    process.env.MIGRATION_RUN_TOKEN?.trim();
+  if (!token) {
+    throw new Error("Neon storage proxy token is not configured.");
+  }
+  return { url, token };
 }
 
 function encodedKey(key: string) {
@@ -48,8 +34,7 @@ function encodedKey(key: string) {
 }
 
 export function neonObjectUrl(key: string) {
-  const { endpoint, bucket } = config();
-  return `${endpoint}/${encodeURIComponent(bucket)}/${encodedKey(key)}`;
+  return `${endpoint()}/${encodeURIComponent(bucket())}/${encodedKey(key)}`;
 }
 
 export async function putNeonObject(
@@ -57,38 +42,55 @@ export async function putNeonObject(
   body: Uint8Array | ArrayBuffer,
   contentType: string,
 ) {
-  const { client: signer } = storageClient();
-  const url = neonObjectUrl(key);
+  const { url, token } = proxyConfig();
   const payload: ArrayBuffer =
     body instanceof ArrayBuffer
       ? body
       : (Uint8Array.from(body).buffer as ArrayBuffer);
-  const response = await signer.fetch(url, {
+  const response = await fetch(url, {
     method: "PUT",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": contentType,
+      "x-object-key": key,
+    },
     body: payload,
-    headers: { "content-type": contentType },
+    cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Neon Object Storage upload failed (${response.status}).`);
+    const detail = await response.text();
+    throw new Error(
+      `Neon Object Storage upload failed (${response.status}): ${detail.slice(0, 300)}`,
+    );
   }
-  return url;
+  const result = (await response.json()) as { url?: string };
+  return result.url || neonObjectUrl(key);
 }
 
 export async function deleteNeonObject(key: string) {
-  const { client: signer } = storageClient();
-  const response = await signer.fetch(neonObjectUrl(key), { method: "DELETE" });
+  const { url, token } = proxyConfig();
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-object-key": key,
+    },
+    cache: "no-store",
+  });
   if (!response.ok && response.status !== 404) {
-    throw new Error(`Neon Object Storage delete failed (${response.status}).`);
+    const detail = await response.text();
+    throw new Error(
+      `Neon Object Storage delete failed (${response.status}): ${detail.slice(0, 300)}`,
+    );
   }
 }
 
 export function neonObjectKeyFromUrl(value: string) {
   try {
-    const { endpoint, bucket } = config();
-    const base = new URL(endpoint);
+    const base = new URL(endpoint());
     const url = new URL(value);
     if (url.origin !== base.origin) return null;
-    const prefix = `/${encodeURIComponent(bucket)}/`;
+    const prefix = `/${encodeURIComponent(bucket())}/`;
     if (!url.pathname.startsWith(prefix)) return null;
     return url.pathname
       .slice(prefix.length)
