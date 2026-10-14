@@ -4,7 +4,6 @@ import { nanoid } from "nanoid";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE, isValidSessionToken } from "@/lib/session";
 import { IMAGE_EXT_MIME, extensionOf, mimeForUpload } from "@/lib/image-files";
-import { putNeonObject } from "@/lib/neon-storage";
 
 export async function POST(request: Request) {
   const store = await cookies();
@@ -32,20 +31,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File is over 8MB." }, { status: 400 });
   }
 
-  const extension = extensionOf(file.name);
-  const safeExt = IMAGE_EXT_MIME[extension] ? extension : "jpg";
-  const fileName = `${nanoid(12)}.${safeExt}`;
-  const folder = form.get("folder") === "covers" ? "covers" : "articles";
-
-  if (process.env.MEDIA_BACKEND === "neon") {
-    const url = await putNeonObject(
-      `${folder}/${fileName}`,
-      new Uint8Array(await file.arrayBuffer()),
-      type,
-    );
-    return NextResponse.json({ url });
-  }
-
   const publicBlobToken = process.env.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim();
   if (!publicBlobToken) {
     return NextResponse.json(
@@ -54,6 +39,10 @@ export async function POST(request: Request) {
     );
   }
 
+  const extension = extensionOf(file.name);
+  const safeExt = IMAGE_EXT_MIME[extension] ? extension : "jpg";
+  const fileName = `${nanoid(12)}.${safeExt}`;
+  const folder = form.get("folder") === "covers" ? "covers" : "articles";
   const blob = await put(`tjay/uploads/${folder}/${fileName}`, file, {
     access: "public",
     contentType: type,
