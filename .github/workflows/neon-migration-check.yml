@@ -22,10 +22,6 @@ jobs:
           cache: npm
       - name: Regenerate npm lockfile
         run: npm install --package-lock-only --ignore-scripts
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Typecheck
-        run: npx tsc --noEmit
       - name: Commit refreshed lockfile
         run: |
           if git diff --quiet package-lock.json; then
@@ -37,3 +33,9 @@ jobs:
           git add package-lock.json
           git commit -m "Refresh lockfile for Neon migration"
           git push origin HEAD:neon-migration
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Generate Next types
+        run: npx next typegen
+      - name: Typecheck
+        run: npx tsc --noEmit
