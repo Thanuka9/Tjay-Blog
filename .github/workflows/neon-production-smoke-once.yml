@@ -1,0 +1,25 @@
+name: One-time Neon production smoke test
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/neon-production-smoke-once.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Neon-backed production pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 30
+          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/ -o /tmp/home.html
+          grep -qi 'The Abyss' /tmp/home.html
+          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/current-issue -o /tmp/issue.html
+          grep -qi 'Issue' /tmp/issue.html
+          curl -fsSL --retry 6 --retry-delay 5 --max-time 30 https://theabyssos.com/articles/are-peptides-the-real-future-of-longevity -o /tmp/article.html
+          grep -qi 'Are peptides' /tmp/article.html
+          echo 'PRODUCTION_NEON_SMOKE=PASS'
