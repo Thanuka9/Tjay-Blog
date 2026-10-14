@@ -44,7 +44,10 @@ export async function putNeonObject(
   body: Uint8Array | ArrayBuffer,
   contentType: string,
 ) {
-  const payload = body instanceof ArrayBuffer ? new Uint8Array(body) : body;
+  const payload: ArrayBuffer =
+    body instanceof ArrayBuffer
+      ? body
+      : (Uint8Array.from(body).buffer as ArrayBuffer);
   const response = await storageClient().fetch(neonObjectUrl(key), {
     method: "PUT",
     headers: { "content-type": contentType },
