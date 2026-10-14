@@ -59,9 +59,13 @@ export async function putNeonObject(
 ) {
   const { client: signer } = storageClient();
   const url = neonObjectUrl(key);
+  const payload: ArrayBuffer =
+    body instanceof ArrayBuffer
+      ? body
+      : (Uint8Array.from(body).buffer as ArrayBuffer);
   const response = await signer.fetch(url, {
     method: "PUT",
-    body: body instanceof ArrayBuffer ? new Uint8Array(body) : body,
+    body: payload,
     headers: { "content-type": contentType },
   });
   if (!response.ok) {
