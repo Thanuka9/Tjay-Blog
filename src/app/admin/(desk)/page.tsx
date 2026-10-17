@@ -1,26 +1,33 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getAdminCommentStats, listAdminComments } from "@/lib/admin-comments";
 import { formatDate } from "@/lib/site";
-import { getDashboardStats, listTopics, listIssueMeta } from "@/lib/store";
+import { getDashboardStats, listIssueMeta, listTopics } from "@/lib/store";
 
 export default async function AdminHomePage() {
-  const [stats, topics, issues] = await Promise.all([
+  const [stats, topics, issues, commentStats, recentComments] = await Promise.all([
     getDashboardStats(),
     listTopics(),
     listIssueMeta(),
+    getAdminCommentStats(),
+    listAdminComments(5),
   ]);
   const topicNames = Object.fromEntries(
     topics.map((topic) => [topic.slug, topic.name]),
   );
+  const backend = process.env.DATA_BACKEND === "neon" ? "Neon PostgreSQL" : "Vercel Blob";
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl">Overview</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-serif text-3xl">Overview</h1>
+            <Badge variant="outline">{backend}</Badge>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Draft, publish, and keep the record clean.
+            Draft, publish, moderate discussion, and keep the journal record clean.
           </p>
         </div>
         <Button asChild>
@@ -28,7 +35,7 @@ export default async function AdminHomePage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Stat label="Published" value={stats.published} />
         <Stat label="Drafts" value={stats.drafts} />
         <Stat label="Subscribers" value={stats.subscribers} />
@@ -36,6 +43,7 @@ export default async function AdminHomePage() {
           label="Published issues"
           value={issues.filter((issue) => issue.status === "published").length}
         />
+        <Stat label="Comments" value={commentStats.total} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-12">
@@ -71,9 +79,7 @@ export default async function AdminHomePage() {
                   </span>
                   <span className="col-span-3 sm:col-span-2">
                     <Badge
-                      variant={
-                        post.status === "published" ? "default" : "secondary"
-                      }
+                      variant={post.status === "published" ? "default" : "secondary"}
                     >
                       {post.status}
                     </Badge>
@@ -88,16 +94,89 @@ export default async function AdminHomePage() {
         </section>
 
         <section className="rounded-xl border border-border p-5 xl:col-span-4">
-          <h2 className="font-serif text-xl">Journal issues</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Arrange articles, add a cover and editor’s letter, and publish the
-            next monthly issue. The latest published issue leads the homepage.
-          </p>
-          <Button asChild size="sm" className="mt-6">
-            <Link href="/admin/issues">Manage issues</Link>
-          </Button>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-serif text-xl">System</h2>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+              Connected
+            </span>
+          </div>
+          <dl className="mt-5 space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Data</dt>
+              <dd className="font-medium">{backend}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Discussion</dt>
+              <dd className="font-medium">Shared Neon comments</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Visible comments</dt>
+              <dd className="font-medium">{commentStats.published}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Hidden comments</dt>
+              <dd className="font-medium">{commentStats.hidden}</dd>
+            </div>
+          </dl>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/admin/comments">Moderate comments</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/admin/issues">Manage issues</Link>
+            </Button>
+          </div>
         </section>
       </div>
+
+      <section className="rounded-xl border border-border">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="font-serif text-xl">Recent discussion</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Latest reader comments stored in Neon.
+            </p>
+          </div>
+          <Link
+            href="/admin/comments"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Moderate all
+          </Link>
+        </div>
+        {recentComments.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-muted-foreground">No comments yet.</p>
+        ) : (
+          <ul>
+            {recentComments.map((comment) => (
+              <li
+                key={comment.id}
+                className="grid gap-2 border-b border-border px-5 py-4 last:border-b-0 md:grid-cols-[140px_minmax(0,1fr)_180px_100px] md:items-start"
+              >
+                <span className="font-medium">{comment.name}</span>
+                <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+                  {comment.body}
+                </p>
+                <Link
+                  href={`/articles/${comment.articleSlug}#comments`}
+                  className="truncate text-sm hover:text-brand hover:underline"
+                >
+                  {comment.articleTitle}
+                </Link>
+                <div className="flex items-center justify-between gap-2 md:block md:text-right">
+                  <Badge variant={comment.status === "published" ? "default" : "secondary"}>
+                    {comment.status}
+                  </Badge>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDate(comment.createdAt)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
