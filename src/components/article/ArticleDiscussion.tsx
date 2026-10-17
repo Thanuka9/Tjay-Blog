@@ -4,59 +4,90 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 type DiscussionComment = {
+  id: string;
+  articleId: string;
   name: string;
   body: string;
-  when: string;
+  createdAt: string;
 };
 
-function isDiscussionComment(item: unknown): item is DiscussionComment {
-  if (!item || typeof item !== "object") return false;
-  const value = item as Record<string, unknown>;
-  return (
-    typeof value.name === "string" &&
-    typeof value.body === "string" &&
-    typeof value.when === "string"
-  );
+function displayDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-export function ArticleDiscussion({ storageKey }: { storageKey: string }) {
-  const key = useMemo(() => `abyss-comments-${storageKey}`, [storageKey]);
+export function ArticleDiscussion({ articleId }: { articleId: string }) {
+  const endpoint = useMemo(
+    () => `/api/comments?articleId=${encodeURIComponent(articleId)}`,
+    [articleId],
+  );
   const [comments, setComments] = useState<DiscussionComment[]>([]);
   const [draftName, setDraftName] = useState("");
   const [draftBody, setDraftBody] = useState("");
+  const [website, setWebsite] = useState("");
   const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) || "[]") as unknown;
-      if (Array.isArray(saved)) {
-        setComments(saved.filter(isDiscussionComment));
-      }
-    } catch {
-      // A malformed or unavailable local store should not block the article.
-    }
-  }, [key]);
+    let cancelled = false;
+    setLoading(true);
+    fetch(endpoint, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load comments.");
+        return (await response.json()) as { comments?: DiscussionComment[] };
+      })
+      .then((payload) => {
+        if (!cancelled) setComments(Array.isArray(payload.comments) ? payload.comments : []);
+      })
+      .catch(() => {
+        if (!cancelled) setNote("Comments are temporarily unavailable.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  function submitComment(event: FormEvent<HTMLFormElement>) {
+    return () => {
+      cancelled = true;
+    };
+  }, [endpoint]);
+
+  async function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = draftName.trim();
     const body = draftBody.trim();
-    if (!name || !body) return;
+    if (!name || !body || posting) return;
 
-    const when = new Date().toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-    const next = [...comments, { name, body, when }];
+    setPosting(true);
+    setNote("");
     try {
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {
-      // Keep the comment visible for this session even if storage is blocked.
+      const response = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ articleId, name, body, website }),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        comment?: DiscussionComment | null;
+      };
+      if (!response.ok) throw new Error(payload.error || "Could not post comment.");
+
+      if (payload.comment) {
+        setComments((current) => [...current, payload.comment as DiscussionComment]);
+      }
+      setDraftBody("");
+      setWebsite("");
+      setNote("Posted. Thanks for joining the discussion.");
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : "Could not post comment.");
+    } finally {
+      setPosting(false);
     }
-    setComments(next);
-    setDraftBody("");
-    setNote("Posted. Thanks for joining the discussion.");
   }
 
   const commentCountLabel =
@@ -79,7 +110,9 @@ export function ArticleDiscussion({ storageKey }: { storageKey: string }) {
         >
           Discussion
         </h2>
-        <span className="text-sm text-[#4A5163]">{commentCountLabel}</span>
+        <span className="text-sm text-[#4A5163]">
+          {loading ? "Loading…" : commentCountLabel}
+        </span>
       </div>
       <p className="mt-2.5 text-sm leading-[1.6] text-[#4A5163]">
         Questions about the evidence, a study we missed, or something that wasn&apos;t clear.
@@ -104,6 +137,18 @@ export function ArticleDiscussion({ storageKey }: { storageKey: string }) {
             />
           </label>
         </div>
+
+        <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+          Website
+          <input
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+          />
+        </label>
+
         <label className="flex flex-col gap-1.5 text-[13px] font-semibold tracking-[0.04em] text-[#0E1C3B]">
           Comment
           <textarea
@@ -117,28 +162,31 @@ export function ArticleDiscussion({ storageKey }: { storageKey: string }) {
           />
         </label>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-[13px] text-[#4A5163]">
+          <span className="text-[13px] text-[#4A5163]" role="status" aria-live="polite">
             {note || "No account or email needed."}
           </span>
           <button
             type="submit"
-            className="min-h-11 border border-[#0E1C3B] bg-[#0E1C3B] px-5 text-sm font-medium text-white"
+            disabled={posting}
+            className="min-h-11 border border-[#0E1C3B] bg-[#0E1C3B] px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Post comment
+            {posting ? "Posting…" : "Post comment"}
           </button>
         </div>
       </form>
 
       {comments.length > 0 ? (
         <div className="mt-8 flex flex-col border-t border-[#D9D2C3]">
-          {comments.map((comment, index) => (
+          {comments.map((comment) => (
             <article
-              key={`${comment.when}-${comment.name}-${index}`}
+              key={comment.id}
               className="border-b border-[#D9D2C3] py-[22px]"
             >
               <div className="flex flex-wrap justify-between gap-2 text-sm">
                 <span className="font-semibold text-[#0E1C3B]">{comment.name}</span>
-                <span className="text-[#4A5163]">{comment.when}</span>
+                <time dateTime={comment.createdAt} className="text-[#4A5163]">
+                  {displayDate(comment.createdAt)}
+                </time>
               </div>
               <p className="mt-2.5 whitespace-pre-wrap font-serif text-lg leading-[1.6] text-[#141A2E]">
                 {comment.body}
@@ -146,7 +194,7 @@ export function ArticleDiscussion({ storageKey }: { storageKey: string }) {
             </article>
           ))}
         </div>
-      ) : (
+      ) : loading ? null : (
         <p className="mt-8 border-t border-[#D9D2C3] pt-6 font-serif text-lg italic text-[#4A5163]">
           No comments yet. Be the first.
         </p>
