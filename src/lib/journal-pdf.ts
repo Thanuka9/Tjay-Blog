@@ -37,6 +37,8 @@ const INK = "#141A2E",
   MUTED = "#4B5365",
   BORDER = "#D8D2C5";
 
+const MAX_IMAGE_BYTES = 15_000_000;
+
 const clean = (value: string) =>
   value.replace(/\[\^(\d+)\]/g, "[$1]").replace(/[\u200b-\u200d\ufeff]/g, "");
 
@@ -57,12 +59,7 @@ function imagesIn(node: Node): Node[] {
   ];
 }
 
-/**
- * Resolve any root-relative asset that is actually inside /public.
- * Article figures live under /public/articles, while covers and legacy
- * uploads use other public subdirectories. Keeping this generic prevents
- * the PDF path from drifting away from the web article path again.
- */
+/** Resolve any root-relative asset that is actually inside /public. */
 function publicFile(source: string) {
   if (!source.startsWith("/") || source.startsWith("//")) return null;
   const rawPath = source.split(/[?#]/, 1)[0];
@@ -72,47 +69,110 @@ function publicFile(source: string) {
   return file;
 }
 
+function trustedRemoteImage(url: URL) {
+  const host = url.hostname.toLowerCase();
+  const vercelBlob = host.endsWith(".public.blob.vercel-storage.com");
+  const neonStorage = host.endsWith(".aws.neon.tech") && host.includes(".storage.");
+  return (
+    url.protocol === "https:" &&
+    !url.username &&
+    !url.password &&
+    (vercelBlob || neonStorage)
+  );
+}
+
+/**
+ * Live articles can point at hashed Neon object-storage URLs while the same
+ * publication figure is also committed under public/articles/<topic>.
+ * Prefer that local canonical copy when available so generated PDFs remain
+ * reproducible even if the image CDN is temporarily unavailable.
+ */
+async function localArticleFigureMirror(source: string): Promise<Buffer | null> {
+  try {
+    const url = new URL(source);
+    const segments = decodeURIComponent(url.pathname).split("/").filter(Boolean);
+    const articlesIndex = segments.lastIndexOf("articles");
+    const topic = segments[articlesIndex + 1];
+    const filename = segments.at(-1) ?? "";
+    if (
+      articlesIndex < 0 ||
+      !topic ||
+      !/^[a-z0-9][a-z0-9-]*$/i.test(topic)
+    )
+      return null;
+
+    const match = filename.match(
+      /^(figure-\d+)(?:-[a-f0-9]+)?\.(?:png|jpe?g|webp|avif)$/i,
+    );
+    if (!match) return null;
+
+    const root = path.resolve(process.cwd(), "public");
+    const articleDir = path.resolve(root, "articles", topic);
+    if (!articleDir.startsWith(`${root}${path.sep}`)) return null;
+
+    for (const extension of ["png", "jpg", "jpeg", "webp", "avif"]) {
+      try {
+        const candidate = path.resolve(articleDir, `${match[1]}.${extension}`);
+        if (!candidate.startsWith(`${articleDir}${path.sep}`)) continue;
+        const data = await readFile(candidate);
+        if (data.length <= MAX_IMAGE_BYTES) return data;
+      } catch {
+        // Try the next supported local representation.
+      }
+    }
+  } catch {
+    // Not a valid remote URL or no local mirror exists.
+  }
+  return null;
+}
+
+async function remoteImageBytes(source: string): Promise<Buffer | null> {
+  try {
+    const url = new URL(source);
+    if (!trustedRemoteImage(url)) return null;
+
+    const response = await fetch(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(15000),
+      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8" },
+    });
+    if (!response.ok) return null;
+
+    const declaredLength = Number(response.headers.get("content-length") || 0);
+    if (declaredLength > MAX_IMAGE_BYTES) return null;
+
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks);
+  } catch {
+    return null;
+  }
+}
+
 async function imageBuffer(source: string): Promise<Buffer | null> {
   try {
-    let data: Buffer;
+    let data: Buffer | null = null;
     const local = publicFile(source);
     if (local) {
       data = await readFile(local);
     } else {
-      const url = new URL(source);
-      if (
-        url.protocol !== "https:" ||
-        !url.hostname.endsWith(".public.blob.vercel-storage.com") ||
-        url.username ||
-        url.password
-      )
-        return null;
-      const response = await fetch(url, {
-        redirect: "error",
-        signal: AbortSignal.timeout(10000),
-      });
-      if (
-        !response.ok ||
-        Number(response.headers.get("content-length")) > 10000000
-      )
-        return null;
-      const reader = response.body?.getReader();
-      if (!reader) return null;
-      const chunks: Uint8Array[] = [];
-      let total = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        total += value.byteLength;
-        if (total > 10000000) {
-          await reader.cancel();
-          return null;
-        }
-        chunks.push(value);
-      }
-      data = Buffer.concat(chunks);
+      data = await localArticleFigureMirror(source);
+      if (!data) data = await remoteImageBytes(source);
     }
-    if (data.length > 10000000) return null;
+
+    if (!data || data.length > MAX_IMAGE_BYTES) return null;
     return await sharp(data, { limitInputPixels: 40000000 })
       .rotate()
       .resize({ width: 1600, withoutEnlargement: true })
@@ -227,11 +287,7 @@ export async function journalPdf(
     text(value, size, true);
   }
 
-  async function image(
-    source: string,
-    alt = "",
-    title = "",
-  ) {
+  async function image(source: string, alt = "", title = "") {
     const data = images.get(source);
     const label = clean(alt.trim());
     const detail = clean(title.trim());
