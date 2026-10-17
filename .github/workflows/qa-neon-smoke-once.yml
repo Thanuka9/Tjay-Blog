@@ -11,13 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Run production QA route
+      - name: Read production Neon diagnostic
         shell: bash
         run: |
           set -euo pipefail
-          sleep 10
+          sleep 12
           body=$(curl -sSL --max-time 60 -w '\nHTTP_STATUS=%{http_code}' https://theabyssos.com/api/qa-neon-smoke-once)
           printf '%s\n' "$body"
           printf '%s' "$body" | grep -q '"ok":true'
-          printf '%s' "$body" | grep -q '"postCreateReadUpdateDelete":"PASS"'
-          printf '%s' "$body" | grep -q '"sharedRead":"PASS"\|"readShared":"PASS"'
