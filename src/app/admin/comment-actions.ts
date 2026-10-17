@@ -27,40 +27,24 @@ export async function setCommentStatusAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const status = String(formData.get("status") ?? "");
   if (!id || (status !== "published" && status !== "hidden")) {
-    return { ok: false as const, message: "Invalid comment moderation request." };
+    throw new Error("Invalid comment moderation request.");
   }
 
-  try {
-    const slug = await articleSlugForComment(id);
-    if (!slug) return { ok: false as const, message: "Comment not found." };
-    const sql = db();
-    await sql`UPDATE comments SET status = ${status} WHERE id = ${id}`;
-    revalidateCommentViews(slug);
-    return { ok: true as const };
-  } catch (error) {
-    return {
-      ok: false as const,
-      message: error instanceof Error ? error.message : "Could not update comment.",
-    };
-  }
+  const slug = await articleSlugForComment(id);
+  if (!slug) throw new Error("Comment not found.");
+  const sql = db();
+  await sql`UPDATE comments SET status = ${status} WHERE id = ${id}`;
+  revalidateCommentViews(slug);
 }
 
 export async function deleteCommentAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) return { ok: false as const, message: "Missing comment." };
+  if (!id) throw new Error("Missing comment.");
 
-  try {
-    const slug = await articleSlugForComment(id);
-    if (!slug) return { ok: false as const, message: "Comment not found." };
-    const sql = db();
-    await sql`DELETE FROM comments WHERE id = ${id}`;
-    revalidateCommentViews(slug);
-    return { ok: true as const };
-  } catch (error) {
-    return {
-      ok: false as const,
-      message: error instanceof Error ? error.message : "Could not delete comment.",
-    };
-  }
+  const slug = await articleSlugForComment(id);
+  if (!slug) throw new Error("Comment not found.");
+  const sql = db();
+  await sql`DELETE FROM comments WHERE id = ${id}`;
+  revalidateCommentViews(slug);
 }
