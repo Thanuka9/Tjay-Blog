@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Database,
   FileText,
   FolderOpen,
   House,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   PenLine,
   Users,
 } from "lucide-react";
@@ -20,11 +22,12 @@ const links = [
   { href: "/admin/issues", label: "Journal issues", icon: House },
   { href: "/admin/posts", label: "Posts", icon: FileText },
   { href: "/admin/posts/new", label: "New post", icon: PenLine },
+  { href: "/admin/comments", label: "Comments", icon: MessageSquare },
   { href: "/admin/topics", label: "Topics", icon: FolderOpen },
   { href: "/admin/subscribers", label: "Subscribers", icon: Users },
 ];
 
-export function AdminNav() {
+export function AdminNav({ backend }: { backend: "Neon" | "Blob" }) {
   const pathname = usePathname();
 
   function isActive(href: string) {
@@ -88,6 +91,11 @@ export function AdminNav() {
           ))}
         </nav>
         <div className="space-y-2 p-3">
+          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+            <Database className="size-3.5" />
+            <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+            <span>{backend} data</span>
+          </div>
           <form action={logoutAction}>
             <Button
               type="submit"
