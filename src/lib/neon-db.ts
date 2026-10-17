@@ -47,6 +47,7 @@ export function db() {
       statement += literal(values[index]);
       statement += strings[index + 1] ?? "";
     }
+    statement = statement.trim();
 
     const base =
       process.env.NEON_DATA_API_URL?.trim().replace(/\/$/, "") ||
