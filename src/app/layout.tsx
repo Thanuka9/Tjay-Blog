@@ -30,6 +30,11 @@ export const metadata: Metadata = {
     template: `%s | ${site.name}`,
   },
   description: site.description,
+  icons: {
+    icon: "/brand/abyss-logo.png",
+    shortcut: "/brand/abyss-logo.png",
+    apple: "/brand/abyss-logo.png",
+  },
   openGraph: {
     type: "website",
     siteName: site.name,
