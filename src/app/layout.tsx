@@ -6,6 +6,7 @@ import { AppToaster } from "@/components/AppToaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { site, publicationUrl } from "@/lib/site";
 import "./globals.css";
+import "./mobile.css";
 
 const geistSans = localFont({
   src: "../../public/fonts/ibm-plex-sans-latin.woff2",
