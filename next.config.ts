@@ -1,10 +1,17 @@
 import type { NextConfig } from "next";
 
+const pdfAssets = [
+  "./public/fonts/pdf/*.ttf",
+  "./public/articles/**/*",
+  "./public/covers/**/*",
+  "./public/uploads/**/*",
+];
+
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfkit"],
   outputFileTracingIncludes: {
-    "/api/download/**": ["./public/fonts/pdf/*.ttf"],
-    "/**/download": ["./public/fonts/pdf/*.ttf"],
+    "/api/download/**": pdfAssets,
+    "/**/download": pdfAssets,
   },
   images: {
     remotePatterns: [
