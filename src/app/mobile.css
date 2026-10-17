@@ -1,0 +1,559 @@
+/* Mobile-specific polish for the public journal. Desktop styles remain in globals.css. */
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 7.25rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .journal-site {
+    overflow-x: clip;
+  }
+
+  .journal-header {
+    box-shadow: 0 1px 0 rgba(14, 28, 59, 0.05);
+  }
+
+  .journal-header > div {
+    padding: 10px 16px 0;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .journal-brand {
+    min-height: 44px;
+    gap: 9px;
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .journal-brand img {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .brand-mission {
+    font-size: 9.5px;
+    line-height: 1.35;
+    letter-spacing: 0.07em;
+  }
+
+  .journal-header nav {
+    order: 3;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    padding: 0 8px 4px;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+    scroll-snap-type: x proximity;
+  }
+
+  .journal-header nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .journal-header nav a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding-inline: 10px !important;
+    font-size: 12px !important;
+    scroll-snap-align: start;
+  }
+
+  .journal-masthead {
+    padding: 30px 0 24px;
+    border-bottom-width: 5px;
+  }
+
+  .journal-masthead h1 {
+    font-size: clamp(50px, 17vw, 70px);
+    line-height: 0.95;
+  }
+
+  .journal-masthead p {
+    margin-top: 14px;
+    padding-inline: 12px;
+    font-size: 18px;
+    line-height: 1.35;
+  }
+
+  .current-issue,
+  .issue-page .current-issue {
+    gap: 28px;
+    padding-top: 28px;
+    padding-bottom: 40px;
+  }
+
+  .current-issue > div:first-child {
+    width: min(100%, 360px);
+  }
+
+  .current-issue-meta {
+    gap: 8px 10px;
+    font-size: 13px;
+  }
+
+  .issue-contents-heading {
+    margin-top: 16px;
+    font-size: 34px;
+    line-height: 1.05;
+  }
+
+  .journal-entry {
+    padding: 20px 0;
+  }
+
+  .journal-entry h3,
+  .issue-contents-table .journal-entry h3 {
+    font-size: 22px;
+    line-height: 1.25;
+  }
+
+  .journal-entry-excerpt {
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .journal-entry-meta {
+    font-size: 12px;
+  }
+
+  .journal-entry-actions {
+    gap: 12px 18px;
+  }
+
+  .issue-home-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .issue-home-actions > a,
+  .journal-download {
+    width: 100%;
+    min-height: 46px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .archive-heading {
+    align-items: end;
+    margin-bottom: 24px;
+  }
+
+  .archive-heading h2 {
+    font-size: 38px;
+    line-height: 1;
+  }
+
+  .archive-grid {
+    gap: 24px;
+  }
+
+  .journal-newsletter h2 {
+    font-size: 30px;
+    line-height: 1.12;
+  }
+
+  .journal-newsletter p {
+    font-size: 16px;
+  }
+
+  .newsletter-inner {
+    padding-top: 36px;
+    padding-bottom: 36px;
+    gap: 22px;
+  }
+
+  .newsletter-form [data-slot="input"],
+  .newsletter-form [data-slot="button"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .publication-page {
+    padding-top: 30px;
+    padding-bottom: 48px;
+  }
+
+  .publication-page h1 {
+    font-size: clamp(34px, 11vw, 44px);
+    line-height: 1.04;
+  }
+
+  .publication-deck {
+    margin-top: 14px;
+    font-size: 19px;
+    line-height: 1.45;
+  }
+
+  .publication-copy,
+  .journal-policy {
+    margin-top: 28px;
+    padding-top: 24px;
+    font-size: 18px;
+    line-height: 1.68;
+  }
+
+  .journal-policy h2 {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .contact-sections {
+    margin-top: 28px;
+  }
+
+  .contact-sections section {
+    padding: 22px 0;
+  }
+
+  .contact-sections h2 {
+    font-size: 22px;
+  }
+
+  .contact-sections p {
+    font-size: 17px;
+  }
+
+  .issue-page {
+    padding-top: 18px;
+    padding-bottom: 52px;
+  }
+
+  .issue-page-heading {
+    margin-top: 18px;
+    padding-top: 20px;
+  }
+
+  .issue-page-heading h1 {
+    font-size: 36px;
+    line-height: 1.04;
+  }
+
+  .about-the-cover {
+    padding: 20px;
+  }
+
+  .issue-cover-full {
+    padding-inline: 10px;
+  }
+
+  .issue-cover-full .cover-topline {
+    padding-inline: 10px;
+  }
+
+  .issue-cover-full .cover-contents {
+    padding: 26px 10px 0;
+    gap: 24px;
+  }
+
+  .issue-cover-full .cover-footer {
+    margin: 28px 10px 0;
+    gap: 8px;
+  }
+
+  .article-container {
+    padding-top: 26px;
+    padding-bottom: 52px;
+  }
+
+  .article-breadcrumb {
+    margin-bottom: 14px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .journal-article-heading {
+    margin-bottom: 28px;
+  }
+
+  .journal-article-heading h1 {
+    margin: 10px 0 14px;
+    font-size: clamp(34px, 10.5vw, 44px);
+    line-height: 1.04;
+    letter-spacing: -0.018em;
+  }
+
+  .article-deck {
+    font-size: 19px;
+    line-height: 1.42;
+  }
+
+  .article-meta-row {
+    align-items: stretch;
+    gap: 14px;
+    margin-top: 22px;
+    padding-block: 15px;
+  }
+
+  .article-meta-row .article-byline,
+  .article-actions {
+    width: 100%;
+  }
+
+  .article-byline {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .article-actions > div:first-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .article-actions :is(button, a[data-slot="button"]) {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    justify-content: center;
+    padding-inline: 12px;
+  }
+
+  .journal-article-grid {
+    gap: 30px;
+  }
+
+  .article-mobile-contents {
+    margin-bottom: 26px;
+  }
+
+  .article-mobile-contents summary {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    font-size: 14px;
+  }
+
+  .article-mobile-contents summary::after {
+    content: "+";
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--brand);
+  }
+
+  .article-mobile-contents[open] summary::after {
+    content: "−";
+  }
+
+  .article-contents a {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 8px 0 8px 14px;
+    font-size: 13px;
+  }
+
+  .article-glance,
+  .article-evidence {
+    margin-bottom: 28px;
+    padding: 18px;
+  }
+
+  .article-abstract {
+    padding: 18px;
+  }
+
+  .article-prose {
+    font-size: 18px;
+    line-height: 1.68;
+  }
+
+  .article-paragraph {
+    margin: 18px 0;
+  }
+
+  .article-section-heading {
+    margin: 38px 0 12px;
+    font-size: 27px;
+    line-height: 1.18;
+  }
+
+  .article-subheading {
+    margin: 28px 0 10px;
+    font-size: 22px;
+    line-height: 1.22;
+  }
+
+  .article-list {
+    margin: 20px 0;
+    padding-left: 22px;
+  }
+
+  .article-prose blockquote {
+    margin-block: 32px !important;
+    padding-left: 18px !important;
+    font-size: 1.25rem !important;
+  }
+
+  .article-prose blockquote p {
+    font-size: 1.25rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .article-figure {
+    margin: 26px 0;
+    padding: 10px;
+  }
+
+  .article-figure figcaption {
+    margin-top: 10px !important;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .article-chart {
+    margin-block: 30px !important;
+  }
+
+  .article-chart > div > div:first-child {
+    padding: 14px 14px 12px;
+  }
+
+  .article-chart figcaption {
+    font-size: 17px !important;
+  }
+
+  .article-chart .chart-visual {
+    min-height: 260px;
+    padding-inline: 6px !important;
+  }
+
+  .chart-data {
+    padding-inline: 14px !important;
+  }
+
+  .article-table-scroll {
+    margin: 26px 0;
+    padding: 0;
+    border-width: 1px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .article-table {
+    min-width: 620px;
+    font-size: 13px;
+  }
+
+  .article-table td,
+  .article-table th {
+    padding: 12px 13px;
+  }
+
+  .article-table td:first-child {
+    font-size: 16px;
+  }
+
+  .article-sources {
+    margin-top: 44px;
+    padding-top: 24px;
+  }
+
+  .article-sources h2 {
+    font-size: 24px;
+  }
+
+  .article-sources li {
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  .journal-article-aside {
+    padding-top: 24px;
+  }
+
+  .article-newsletter {
+    padding: 20px !important;
+  }
+
+  .journal-footer-inner {
+    padding-top: 26px;
+    padding-bottom: 30px;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .journal-footer nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  .journal-footer nav a {
+    min-height: 44px;
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 560px) {
+  .archive-grid {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+
+  .archive-item {
+    width: min(100%, 360px);
+    margin-inline: auto;
+  }
+
+  .issue-cover-archive {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 390px) {
+  .journal-header > div {
+    padding-inline: 14px;
+  }
+
+  .journal-header nav {
+    width: calc(100% + 28px);
+    margin-inline: -14px;
+  }
+
+  .journal-brand {
+    font-size: 23px;
+  }
+
+  .journal-brand img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .journal-masthead h1 {
+    font-size: 48px;
+  }
+
+  .journal-article-heading h1 {
+    font-size: 33px;
+  }
+
+  .article-deck {
+    font-size: 18px;
+  }
+
+  .article-prose {
+    font-size: 17.5px;
+  }
+
+  .article-actions > div:first-child {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-footer nav {
+    grid-template-columns: 1fr;
+  }
+}
