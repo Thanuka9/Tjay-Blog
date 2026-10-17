@@ -154,7 +154,7 @@ export default async function ArticlePage({ params }: Props) {
               evidenceLadder={features.evidenceLadder}
             />
             <SourceList citations={references} />
-            <ArticleDiscussion storageKey={post.articleCode || post.slug} />
+            <ArticleDiscussion articleId={post.id} />
           </div>
 
           <aside className="journal-article-aside print:hidden">
