@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { deleteCommentAction, setCommentStatusAction } from "@/app/admin/comment-actions";
+import { CommentModerationButtons } from "@/components/admin/CommentModerationButtons";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -82,25 +81,7 @@ export default async function CommentsPage() {
                     {formatDate(comment.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <form action={setCommentStatusAction}>
-                        <input type="hidden" name="id" value={comment.id} />
-                        <input
-                          type="hidden"
-                          name="status"
-                          value={comment.status === "published" ? "hidden" : "published"}
-                        />
-                        <Button type="submit" size="sm" variant="outline">
-                          {comment.status === "published" ? "Hide" : "Publish"}
-                        </Button>
-                      </form>
-                      <form action={deleteCommentAction}>
-                        <input type="hidden" name="id" value={comment.id} />
-                        <Button type="submit" size="sm" variant="destructive">
-                          Delete
-                        </Button>
-                      </form>
-                    </div>
+                    <CommentModerationButtons id={comment.id} status={comment.status} />
                   </TableCell>
                 </TableRow>
               ))
