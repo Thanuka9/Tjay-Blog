@@ -5,6 +5,7 @@ import { db } from "@/lib/neon-db";
 
 export const dynamic = "force-dynamic";
 
+// One-time production smoke route. Removed immediately after verification.
 export async function GET() {
   const qaTopic = "qa-crud-smoke";
   const qaPostId = "qa_crud_smoke";
@@ -51,7 +52,6 @@ export async function GET() {
       throw new Error("Post update failed");
     }
 
-    // Use the real published article for the public comments API smoke test.
     const sql = db();
     const articleRows = (await sql`
       SELECT id FROM articles
