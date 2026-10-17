@@ -59,7 +59,8 @@ with sync_playwright() as p:
     printed = fitz.open(out/"article-print.pdf")
     printed_text = "\n".join(sheet.get_text() for sheet in printed)
     print_compact = re.sub(r"\s+", "", printed_text.lower())
-    assert "fdastatus" in print_compact and "citethisarticle" in print_compact, "Print view must preserve article tables and citations"
+    assert "fdastatus" in print_compact, "Print view must preserve article tables"
+    assert "citethisarticle" not in print_compact
     assert "CC BY-NC-ND" not in printed_text
     assert "ataglance" in print_compact
     page.set_viewport_size({"width":390,"height":844})
@@ -161,14 +162,17 @@ for kind,url in [("full",issue+"/download"),("article",article+"/download"),("co
     assert "The Abyss" in text
     assert "The Assay" not in text
     if kind=="full":
-        for label in ["From the Editor","Table of Contents","References","Cite this article","Publication information"]: assert label in text, label
+        for label in ["From the Editor","Table of Contents","References","Publication information"]: assert label in text, label
+        assert "Cite this article" not in text
         assert text.index("From the Editor") < text.index("Table of Contents") < text.index("References")
         assert any(page.get_images() for page in doc), "Article image was not embedded"
     if kind=="article": assert "Table of Contents" not in text
     if kind in ["full","article"]:
         for label in ["At a glance","Background","Purpose","What the evidence shows","What this means for you","TB-500: the recovery peptide"]: assert label in text, label
         assert "CC BY-NC-ND" not in text
-        assert "Figure 7." in text
+        assert "Cite this article" not in text
+        assert "[Figure unavailable in this PDF:" not in text
+        for number in range(1, 8): assert f"Figure {number}." in text, f"Figure {number} caption missing"
         assert sum(len(sheet.get_images()) for sheet in doc)>=7, "All seven figures must be embedded"
         fonts={font[3] for sheet in doc for font in sheet.get_fonts()}
         assert any("Newsreader" in font for font in fonts) and any("IBMPlexSans" in font for font in fonts),fonts
@@ -177,4 +181,4 @@ for kind,url in [("full",issue+"/download"),("article",article+"/download"),("co
 for path in ["/api/download/issue/1900-01","/api/download/nonsense/current","/articles/missing/download","/issues/1900/01/cover"]:
     try: urllib.request.urlopen(base+path); raise AssertionError(path)
     except urllib.error.HTTPError as error: assert error.code==404
-print("Palette, typography, revised article, mobile layout, PDF contents, images, and missing-resource checks passed.")
+print("Palette, typography, revised article, mobile layout, PDF contents, all seven figures, and missing-resource checks passed.")
