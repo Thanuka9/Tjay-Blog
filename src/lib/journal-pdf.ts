@@ -189,6 +189,7 @@ export async function journalPdf(
   contentsOnly = false,
   articleOnly = false,
 ): Promise<Buffer> {
+  if (articleOnly) return articlePrintPdf(posts[0], issue);
   const sources = new Set<string>();
   const coverImage = issue ? issueCoverImage(issue) : null;
   if (coverImage) sources.add(coverImage);
@@ -726,4 +727,345 @@ export async function journalPdf(
 
   doc.end();
   return completed;
+}
+
+
+/**
+ * Print-edition article renderer. An article download is a compact editorial
+ * publication with two-column reading text and full-width figures, not a copy
+ * of the full-issue PDF. Both formats consume the SAME article data.
+ */
+async function articlePrintPdf(post: Post, issue?: JournalIssue): Promise<Buffer> {
+  type Piece =
+    | { kind: "text" | "heading" | "quote"; text: string; continuation?: boolean }
+    | { kind: "figure"; source: string; alt: string; title: string }
+    | { kind: "table"; rows: string[][] }
+    | { kind: "chart"; spec: { title: string; description?: string; unit?: string; yMax?: number; data: { name: string; value: number }[] } };
+
+  const doc = new PDFDocument({
+    size: "A4", margin: 0, bufferPages: true, autoFirstPage: false,
+    info: { Title: post.title, Author: site.name, Subject: site.supportingDescription },
+  });
+  const chunks: Buffer[] = [];
+  const complete = new Promise<Buffer>((resolve, reject) => {
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+  const faces: Record<string, string> = {
+    Serif: "newsreader-400.ttf", SerifMedium: "newsreader-500.ttf",
+    SerifItalic: "newsreader-italic-400.ttf",
+    Sans: "ibm-plex-sans-400.ttf", SansMedium: "ibm-plex-sans-500.ttf",
+    SansBold: "ibm-plex-sans-600.ttf",
+  };
+  for (const [name, file] of Object.entries(faces)) {
+    doc.registerFont(name, await readFile(path.join(process.cwd(), "public/fonts/pdf", file)));
+  }
+
+  const PAGE_W = 595.28, M = 46, W = PAGE_W - 2 * M, GAP = 24;
+  const CW = (W - GAP) / 2, TOP = 46, BOTTOM = 790;
+  const C = { ink: "#14203A", teal: "#417D81", muted: "#596276", line: "#9A9EA7" };
+  let y = TOP;
+  const newPage = () => { doc.addPage(); y = TOP; };
+  const rule = (yy: number, x = M, w = W) => {
+    doc.save().lineWidth(0.6).strokeColor(C.line).moveTo(x, yy).lineTo(x + w, yy).stroke().restore();
+  };
+  const typ = (face: string, size: number, color = C.ink) => {
+    doc.font(face).fontSize(size).fillColor(color);
+  };
+  const height = (value: string, width: number, face: string, size: number, leading = 2) => {
+    typ(face, size);
+    return doc.heightOfString(value || " ", { width, lineGap: leading });
+  };
+  const copy = (value: string, x: number, yy: number, width: number,
+    face: string, size: number, leading = 2, align: "left" | "right" | "justify" = "left", color = C.ink) => {
+    typ(face, size, color);
+    doc.text(value, x, yy, { width, lineGap: leading, align });
+    return yy + height(value, width, face, size, leading);
+  };
+  const asText = (node: Node) => inline(node).replace(/\s+/g, " ").trim();
+
+  // Page one: the same publication identity, large headline, deck and abstract
+  // used by the supplied Article Print reference.
+  newPage();
+  try {
+    const logo = await imageBuffer("/brand/abyss-logo.png");
+    if (logo) doc.image(logo, M, y - 2, { fit: [24, 24] });
+  } catch { /* The name remains as a text masthead if the logo is absent. */ }
+  copy(site.name, M + 31, y + 1, 210, "SerifItalic", 15, 0);
+  const issueShort = issue
+    ? "VOL. " + issue.volume + " · NO. " + issue.number + " · " + issue.label.toUpperCase()
+    : "A SCIENCE JOURNAL FOR EVERYONE";
+  copy((post.articleType || "Research article").toUpperCase(), PAGE_W - M - 225, y, 225, "SansBold", 7.5, 0, "right", C.muted);
+  copy(issueShort + (post.articleCode ? " · " + post.articleCode : ""), PAGE_W - M - 245, y + 12, 245,
+    "Sans", 6.7, 0, "right", C.muted);
+  y += 31;
+  rule(y);
+  y += 14;
+  y = copy(post.title, M, y, W, "SerifMedium", 23, 2);
+  y += 3;
+  y = copy(post.excerpt, M, y, W, "SerifItalic", 11.7, 2, "left", C.muted);
+  y += 11;
+  const published = post.publishedAt
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(post.publishedAt))
+    : "Unpublished";
+  y = copy(post.author + " · " + site.name + " · Published " + published, M, y, W, "SansMedium", 8, 1);
+  y += 14;
+  rule(y);
+  y += 12;
+
+  const feature = articleFeatures(post);
+  const abstract = post.abstract?.length
+    ? post.abstract
+    : feature.atAGlance
+      ? [{ label: "What we know", text: feature.atAGlance.known },
+        { label: "What we don't know", text: feature.atAGlance.unknown },
+        { label: "What to watch", text: feature.atAGlance.watch }]
+      : [];
+  for (const item of abstract) {
+    const label = item.label.replace(/[.\s]+$/, "") + ".";
+    const combined = label + "  " + item.text;
+    const h = height(combined, W, "Sans", 8.35, 2);
+    if (y + h + 6 > BOTTOM) newPage();
+    y = copy(combined, M, y, W, "Sans", 8.35, 2);
+    y += 6;
+  }
+  if (abstract.length) { y += 5; rule(y); y += 10; }
+
+  const events: Piece[] = [];
+  const splitText = (value: string, kind: "text" | "quote" = "text") => {
+    const words = value.trim().split(/\s+/).filter(Boolean);
+    // Short fragments permit balanced columns and avoid a giant paragraph
+    // running over the bottom edge of a page.
+    for (let i = 0; i < words.length; i += 53) {
+      events.push({ kind, text: words.slice(i, i + 53).join(" "), continuation: i > 0 });
+    }
+  };
+  for (const block of splitContent(post.content)) {
+    if (block.type === "chart") {
+      events.push({ kind: "chart", spec: block.spec });
+      continue;
+    }
+    for (const node of parse(block.content).children || []) {
+      if (node.type === "heading") {
+        events.push({ kind: "heading", text: asText(node) });
+      } else if (node.type === "paragraph") {
+        const textValue = asText(node);
+        if (textValue) splitText(textValue);
+        for (const fig of imagesIn(node)) {
+          if (fig.url) events.push({ kind: "figure", source: fig.url, alt: fig.alt || "", title: fig.title || "" });
+        }
+      } else if (node.type === "image" && node.url) {
+        events.push({ kind: "figure", source: node.url, alt: node.alt || "", title: node.title || "" });
+      } else if (node.type === "blockquote") {
+        splitText(asText(node), "quote");
+      } else if (node.type === "list") {
+        for (const [index, item] of (node.children || []).entries()) {
+          const prefix = node.ordered ? String((node.start || 1) + index) + ". " : "• ";
+          splitText(prefix + asText(item));
+        }
+      } else if (node.type === "table") {
+        events.push({
+          kind: "table",
+          rows: (node.children || []).map((row) => (row.children || []).map(asText)),
+        });
+      } else if (node.type === "html" && node.value) {
+        const value = node.value.replace(/<[^>]+>/g, "").trim();
+        if (value) splitText(value);
+      }
+    }
+  }
+
+  type TextPiece = Extract<Piece, { kind: "text" | "heading" | "quote" }>;
+  const pending: TextPiece[] = [];
+  const params = (part: TextPiece) => {
+    if (part.kind === "heading")
+      return { face: "SansBold", size: 10.25, gap: 2.5, above: 8 };
+    if (part.kind === "quote")
+      return { face: "SerifItalic", size: 10.2, gap: 3, above: 5 };
+    return { face: "Serif", size: 9.7, gap: part.continuation ? 0 : 7, above: 0 };
+  };
+  const pieceHeight = (part: TextPiece) => {
+    const p = params(part);
+    return height(part.text, CW, p.face, p.size, 2.4) + p.gap + p.above;
+  };
+  const placePiece = (part: TextPiece, x: number, yy: number) => {
+    const p = params(part);
+    const top = yy + p.above;
+    return copy(part.text, x, top, CW, p.face, p.size, 2.4,
+      part.kind === "text" ? "justify" : "left") + p.gap;
+  };
+  const flushColumns = () => {
+    const queue = pending.splice(0);
+    while (queue.length) {
+      if (y > BOTTOM - 70) newPage();
+      const available = BOTTOM - y;
+      const sum = queue.reduce((total, part) => total + pieceHeight(part), 0);
+      const target = Math.min(available, Math.max(35, sum / 2));
+      const ys = [y, y];
+      let placed = 0;
+      for (let col = 0; col < 2; col++) {
+        while (queue.length) {
+          const part = queue[0], h = pieceHeight(part);
+          const used = ys[col] - y;
+          if (h > BOTTOM - ys[col]) break;
+          if (part.kind === "heading" && queue.length > 1 &&
+              h + pieceHeight(queue[1]) > BOTTOM - ys[col]) break;
+          if (col === 0 && used > 0 && used + h > target && queue.length > 1) break;
+          queue.shift();
+          ys[col] = placePiece(part, M + col * (CW + GAP), ys[col]);
+          placed++;
+        }
+      }
+      if (!placed) {
+        if (y <= TOP + 1) throw new Error("An article paragraph does not fit on an A4 page.");
+        newPage();
+        continue;
+      }
+      y = Math.max(...ys) + 8;
+      if (queue.length) newPage();
+    }
+  };
+
+  const figureCaption = (alt: string, title: string) => {
+    const a = clean(alt).trim(), t = clean(title).trim();
+    if (!t) return a;
+    if (!a || t.toLowerCase().startsWith(a.toLowerCase())) return t;
+    // If both fields carry a Figure N. prefix, prefer the longer title.
+    if (/^Figure \d+\./i.test(a) && /^Figure \d+\./i.test(t)) return t;
+    return a + " " + t;
+  };
+  const renderFigure = async (part: Extract<Piece, { kind: "figure" }>) => {
+    const img = await imageBuffer(part.source);
+    if (!img) {
+      // Do not silently publish another download full of broken-figure notices.
+      throw new Error("Unable to load the published article figure: " + part.source);
+    }
+    const meta = await sharp(img).metadata();
+    const ratio = (meta.height || 1) / (meta.width || 1);
+    const imageH = Math.min(224, Math.max(112, W * ratio));
+    const caption = figureCaption(part.alt, part.title);
+    const capH = caption ? height(caption, W - 38, "Sans", 7.4, 1.5) : 0;
+    const total = imageH + capH + 29;
+    if (y + total > BOTTOM) newPage();
+    rule(y);
+    const top = y + 10;
+    doc.image(img, M, top, { fit: [W, imageH], align: "center", valign: "center" });
+    y = top + imageH + 5;
+    if (caption) y = copy(caption, M + 36, y, W - 36, "Sans", 7.4, 1.5);
+    y += 14;
+  };
+
+  const renderTable = (rows: string[][]) => {
+    if (!rows.length) return;
+    const count = Math.max(1, ...rows.map((row) => row.length));
+    const widths = count === 5
+      ? [0.24, 0.21, 0.21, 0.17, 0.17].map((n) => n * W)
+      : Array.from({ length: count }, (_, i) => i === 0 ? W * 0.30 : W * 0.70 / (count - 1 || 1));
+    const oneRow = (row: string[], header: boolean) => {
+      const heights = widths.map((cw, i) => height(row[i] || "", cw - 9,
+        header ? "SansBold" : i === 0 ? "SansBold" : "Sans", header ? 7.25 : 7.45, 1.4));
+      const h = Math.max(14, ...heights) + 9;
+      if (y + h + 8 > BOTTOM) newPage();
+      rule(y);
+      let x = M;
+      for (let i = 0; i < count; i++) {
+        const v = header ? (row[i] || "").toUpperCase() : (row[i] || "");
+        copy(v, x + 3, y + 5, widths[i] - 9,
+          header || i === 0 ? "SansBold" : "Sans",
+          header ? 7.25 : 7.45, 1.4);
+        x += widths[i];
+      }
+      y += h;
+    };
+    if (y > BOTTOM - 120) newPage();
+    rows.forEach((row, i) => oneRow(row, i === 0));
+    rule(y);
+    y += 15;
+  };
+
+  const renderChart = (spec: Extract<Piece, { kind: "chart" }>["spec"]) => {
+    const rows = spec.data || [];
+    if (!rows.length) return;
+    const barH = Math.max(16, Math.min(23, 140 / rows.length));
+    const chartH = 47 + rows.length * barH;
+    if (y + chartH + 15 > BOTTOM) newPage();
+    rule(y);
+    y += 10;
+    y = copy(spec.title, M, y, W, "SansBold", 9.5, 1.6) + 4;
+    if (spec.description) y = copy(spec.description, M, y, W, "Sans", 7.6, 1.5, "left", C.muted) + 5;
+    const maximum = Math.max(1, spec.yMax || 0, ...rows.map((row) => Number(row.value) || 0));
+    const labelW = 150;
+    for (const row of rows) {
+      const val = Number(row.value) || 0;
+      copy(row.name, M, y + 2, labelW - 6, "Sans", 7.2, 1);
+      doc.save().rect(M + labelW, y + 2, (W - labelW - 56) * Math.max(0, val / maximum), 8)
+        .fill(C.teal).restore();
+      copy(String(val) + (spec.unit ? " " + spec.unit : ""), PAGE_W - M - 51, y + 1, 51,
+        "SansMedium", 7.1, 1, "right");
+      y += barH;
+    }
+    y += 14;
+  };
+
+  for (const event of events) {
+    if (event.kind === "text" || event.kind === "heading" || event.kind === "quote") {
+      pending.push(event);
+      continue;
+    }
+    flushColumns();
+    if (event.kind === "figure") await renderFigure(event);
+    else if (event.kind === "table") renderTable(event.rows);
+    else if (event.kind === "chart") renderChart(event.spec);
+  }
+  flushColumns();
+
+  // Reference end matter is also two-column, exactly as in the supplied print.
+  const refs = post.references ?? CITATIONS_BY_SLUG[post.slug] ?? [];
+  if (refs.length) {
+    const half = Math.ceil(refs.length / 2);
+    const cells = refs.map((ref) =>
+      String(ref.id) + ". " + ref.title + ". " + ref.detail + (ref.url ? " " + ref.url : ""));
+    const perColumn = [
+      cells.slice(0, half), cells.slice(half),
+    ];
+    const columnHeights = perColumn.map((col) =>
+      col.reduce((sum, item) => sum + height(item, CW - 12, "Sans", 7.55, 1.9) + 6, 0));
+    if (y + Math.max(...columnHeights) + 55 > BOTTOM) newPage();
+    rule(y);
+    y += 11;
+    y = copy("REFERENCES", M, y, W, "SansBold", 8, 0) + 10;
+    const start = y;
+    for (let col = 0; col < 2; col++) {
+      let ry = start;
+      for (const item of perColumn[col]) {
+        if (ry + height(item, CW - 12, "Sans", 7.55, 1.9) > BOTTOM) {
+          newPage();
+          ry = TOP;
+        }
+        ry = copy(item, M + col * (CW + GAP) + 8, ry, CW - 12, "Sans", 7.55, 1.9) + 7;
+      }
+      y = Math.max(y, ry);
+    }
+    y += 10;
+  }
+  if (y > BOTTOM - 25) newPage();
+  rule(y);
+  y = copy("This article explains published research for a general audience. It is not medical advice. © " +
+    new Date().getUTCFullYear() + " " + site.name + ". Free to read.", M, y + 9, W, "Sans", 7.3, 1.1, "left", C.muted);
+
+  // Fixed folios: consistent running footer and real page count.
+  const pages = doc.bufferedPageRange();
+  for (let page = pages.start; page < pages.start + pages.count; page++) {
+    doc.switchToPage(page);
+    rule(798);
+    const imprint = issue
+      ? (site.name + " · VOL. " + issue.volume + " · NO. " + issue.number + " · " + issue.label).toUpperCase()
+      : site.name.toUpperCase();
+    copy(imprint, M, 805, W - 65, "Sans", 6.6, 0, "left", C.muted);
+    copy(String(page + 1) + " / " + String(pages.count), PAGE_W - M - 60, 805,
+      60, "Sans", 6.6, 0, "right", C.muted);
+  }
+  doc.end();
+  return complete;
 }
