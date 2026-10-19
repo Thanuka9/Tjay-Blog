@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import {
   getPostBySlug,
   getPublishedIssue,
@@ -26,7 +28,30 @@ export async function downloadResponse(kind: string, id: string) {
     );
     const post =
       issue?.posts.find((post) => post.id === original.id) || original;
-    pdf = await journalPdf([post], issue || undefined, false, true);
+    // AB-0101 has an art-directed seven-page A4 edition reviewed against
+    // the editorial HTML print master. Keep its typography, paired columns,
+    // figure positions, tables and folios exactly as designed.
+    // Only use the fixed edition for the article revision it was made for:
+    // later editorial edits must flow through the live-data PDF renderer.
+    const isPrintEditionCurrent =
+      id === "are-peptides-the-real-future-of-longevity" &&
+      Date.parse(original.updatedAt) <= Date.parse("2026-10-19T02:00:00Z");
+    let fixedEdition: Buffer | null = null;
+    if (isPrintEditionCurrent) {
+      try {
+        fixedEdition = await readFile(
+          path.join(
+            process.cwd(),
+            "public",
+            "downloads",
+            "AB-0101-are-peptides-the-real-future-of-longevity.pdf",
+          ),
+        );
+      } catch {
+        // Fail gracefully if a deployment omits the print asset.
+      }
+    }
+    pdf = fixedEdition ?? await journalPdf([post], issue || undefined, false, true);
     // An individual article has its issue context, without the issue front matter.
     filename = `${post.articleCode || "The-Abyss"}-${slugify(post.title)}.pdf`;
   } else {
