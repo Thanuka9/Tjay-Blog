@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import sharp from "sharp";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { upfFigureSvg } from "@/lib/upf-figures";
 import { splitContent } from "@/lib/content";
 import { articleFeatures, evidencePlacement } from "@/lib/article-features";
 import { extractHeadings } from "@/lib/headings";
@@ -164,12 +165,17 @@ async function remoteImageBytes(source: string): Promise<Buffer | null> {
 async function imageBuffer(source: string): Promise<Buffer | null> {
   try {
     let data: Buffer | null = null;
-    const local = publicFile(source);
-    if (local) {
-      data = await readFile(local);
+    const embedded = source.match(/^\/api\/article-figures\/(upf-[1-6])$/);
+    if (embedded) {
+      data = upfFigureSvg(embedded[1]);
     } else {
-      data = await localArticleFigureMirror(source);
-      if (!data) data = await remoteImageBytes(source);
+      const local = publicFile(source);
+      if (local) {
+        data = await readFile(local);
+      } else {
+        data = await localArticleFigureMirror(source);
+        if (!data) data = await remoteImageBytes(source);
+      }
     }
 
     if (!data || data.length > MAX_IMAGE_BYTES) return null;
