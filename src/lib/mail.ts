@@ -12,9 +12,9 @@ export function siteUrl() {
   const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   // A sample localhost URL must never enter production unsubscribe links.
   if (process.env.NODE_ENV === "production" && (!configured || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(configured))) {
-    return publicationUrl();
+    return "https://theabyssos.com";
   }
-  return (configured || "http://localhost:3000").replace(/\/$/, "");
+  return (configured || (process.env.NODE_ENV === "production" ? publicationUrl() : "http://localhost:3000")).replace(/\/$/, "");
 }
 
 function mailFrom() {
