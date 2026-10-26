@@ -215,10 +215,15 @@ export function PostEditor({
     }
     setStatus(nextStatus);
     toast.success(
-      nextStatus === "published"
-        ? "Published — it is live on the site"
-        : "Draft saved",
+      nextStatus === "published" ? "Published — it is live on the site" : "Draft saved",
     );
+    if (result.emailStatus) {
+      if (result.emailStatus.includes("held") || result.emailStatus.includes("only") || result.emailStatus.includes("failed")) {
+        toast.warning(result.emailStatus, { duration: 10000 });
+      } else {
+        toast.info(result.emailStatus, { duration: 6500 });
+      }
+    }
     router.push(`/admin/posts/${result.id}`);
     router.refresh();
   }

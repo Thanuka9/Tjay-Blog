@@ -3,20 +3,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAdminCommentStats, listAdminComments } from "@/lib/admin-comments";
 import { formatDate } from "@/lib/site";
-import { getDashboardStats, listIssueMeta, listTopics } from "@/lib/store";
+import { getDashboardStats, listIssueMeta, listTopics, listOutboundMail } from "@/lib/store";
+import { mailHealth } from "@/lib/mail";
 
 export default async function AdminHomePage() {
-  const [stats, topics, issues, commentStats, recentComments] = await Promise.all([
+  const [stats, topics, issues, commentStats, recentComments, outbox] = await Promise.all([
     getDashboardStats(),
     listTopics(),
     listIssueMeta(),
     getAdminCommentStats(),
     listAdminComments(5),
+    listOutboundMail(),
   ]);
   const topicNames = Object.fromEntries(
     topics.map((topic) => [topic.slug, topic.name]),
   );
   const backend = process.env.DATA_BACKEND === "neon" ? "Neon PostgreSQL" : "Vercel Blob";
+  const mail = mailHealth();
+  const mailFailures = outbox.filter((item) => item.status === "failed").length;
 
   return (
     <div className="space-y-8">
@@ -107,6 +111,18 @@ export default async function AdminHomePage() {
               <dd className="font-medium">{backend}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Newsletter delivery</dt>
+              <dd className="font-medium">{mail.provider}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">EmailJS templates</dt>
+              <dd className="font-medium">{mail.emailJsReady ? "Ready" : "Not configured"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Mail failures (recent)</dt>
+              <dd className="font-medium">{mailFailures}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
               <dt className="text-muted-foreground">Discussion</dt>
               <dd className="font-medium">Shared Neon comments</dd>
             </div>
@@ -125,6 +141,9 @@ export default async function AdminHomePage() {
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href="/admin/issues">Manage issues</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/admin/subscribers">Newsletter health</Link>
             </Button>
           </div>
         </section>

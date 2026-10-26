@@ -141,10 +141,20 @@ export async function savePostAction(formData: FormData) {
       featured: parsed.data.featured === "true",
     });
 
+    let emailStatus: string | null = null;
     if (post.status === "published" && existing?.status !== "published") {
-      await notifySubscribersOfNewArticle(post).catch(() => {
-        // Publishing still succeeds if mail is not configured.
-      });
+      try {
+        const result = await notifySubscribersOfNewArticle(post);
+        emailStatus = result.skipped
+          ? `Article is live. Newsletter sending was held for ${result.skipped} recipients; see Subscribers → Outbox.`
+          : result.attempted === 0
+            ? "Article is live. There are no active recipients to notify."
+            : result.sent === result.attempted
+              ? `Email provider accepted ${result.sent} publication notifications.`
+              : `Article is live, but only ${result.sent}/${result.attempted} notifications were accepted. Check Subscribers → Outbox.`;
+      } catch (error) {
+        emailStatus = `Article is live, but notification failed: ${error instanceof Error ? error.message : "Unknown error"}.`;
+      }
     }
 
     revalidatePath("/", "layout");
@@ -155,7 +165,7 @@ export async function savePostAction(formData: FormData) {
     revalidatePath("/admin");
     revalidatePath("/admin/posts");
 
-    return { ok: true as const, id: post.id, slug: post.slug };
+    return { ok: true as const, id: post.id, slug: post.slug, emailStatus };
   } catch (error) {
     return {
       ok: false as const,
@@ -256,6 +266,7 @@ export async function deleteTopicAction(formData: FormData) {
 
 export async function sendDigestAction() {
   await requireAdmin();
+  if (!process.env.RESEND_API_KEY) return { ok: false as const, message: "A digest requires Resend. EmailJS has welcome and new-article templates only." };
   try {
     const result = await sendLatestDigest();
     revalidatePath("/admin/subscribers");

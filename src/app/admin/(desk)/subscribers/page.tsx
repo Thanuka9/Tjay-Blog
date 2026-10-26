@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/site";
-import { mailConfigured } from "@/lib/mail";
+import { mailHealth } from "@/lib/mail";
 import { listOutboundMail, listSubscribers } from "@/lib/store";
 
 export default async function SubscribersPage() {
@@ -17,7 +17,10 @@ export default async function SubscribersPage() {
     listOutboundMail(),
   ]);
   const active = subscribers.filter((sub) => !sub.unsubscribedAt);
-  const configured = mailConfigured();
+  const health = mailHealth();
+  const sent = outbox.filter((mail) => mail.status === "sent").length;
+  const failed = outbox.filter((mail) => mail.status === "failed").length;
+  const logged = outbox.filter((mail) => mail.status === "logged").length;
 
   return (
     <div className="space-y-8">
@@ -27,13 +30,43 @@ export default async function SubscribersPage() {
           <p className="text-sm text-muted-foreground">
             {active.length} {active.length === 1 ? "address" : "addresses"} on the
             list.
-            {configured
-              ? " New signups and new articles send email automatically."
-              : " Add RESEND_API_KEY to send real mail; until then letters are stored in the outbox."}
+            Active addresses in the subscriber database form the mailing list. New signups receive a welcome note; newly published articles notify active readers separately.
           </p>
         </div>
-        <SendDigestButton />
+        {process.env.RESEND_API_KEY ? <SendDigestButton /> : null}
       </div>
+      <section className="grid gap-4 sm:grid-cols-3" aria-label="Subscriber and email health">
+        <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Active subscribers</p><p className="mt-2 font-serif text-4xl">{active.length}</p><p className="text-xs text-muted-foreground">{subscribers.length - active.length} unsubscribed</p></div>
+        <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Email service</p><p className="mt-2 text-xl font-semibold">{health.provider}</p><p className="mt-2 text-xs text-muted-foreground">{health.emailJsReady ? "Welcome + article templates configured" : "EmailJS setup is incomplete"}</p></div>
+        <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Outbox history</p><p className="mt-2 text-xl font-semibold">{sent} accepted · {failed} failed</p><p className="mt-2 text-xs text-muted-foreground">{logged} logged without sending. Accepted does not guarantee inbox delivery.</p></div>
+      </section>
+
+      <section className="rounded-xl border border-border p-5">
+        <h2 className="font-serif text-xl">EmailJS configuration</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Connected Gmail service shown in EmailJS: <code>service_59u3x2h</code>. Server environment is checked below. Never paste private keys into the website or source code.</p>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt className="text-muted-foreground">Configured service ID</dt><dd className="font-medium break-all">{health.serviceId ?? "Missing"}</dd></div>
+          <div><dt className="text-muted-foreground">Service match</dt><dd className="font-medium">{health.serviceId ? (health.serviceId === "service_59u3x2h" ? "Matches Gmail screenshot" : "Different from Gmail screenshot — check service") : "Not configured yet"}</dd></div>
+          <div><dt className="text-muted-foreground">Welcome template</dt><dd className="font-medium break-all">{health.welcomeTemplateId ?? "Missing"}</dd></div>
+          <div><dt className="text-muted-foreground">Article template</dt><dd className="font-medium break-all">{health.articleTemplateId ?? "Missing"}</dd></div>
+        </dl>
+        {health.missing.length ? (
+          <div className="mt-4 rounded-md border border-amber-500/40 p-3 text-sm">
+            <p className="font-semibold">EmailJS not ready — missing environment variables:</p>
+            <ul className="mt-1 list-inside list-disc break-all">{health.missing.map((key) => <li key={key}><code>{key}</code></li>)}</ul>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-emerald-700">Both templates and account keys are present in server settings. Use EmailJS test sending to verify actual delivery.</p>
+        )}
+        <p className="mt-4 text-xs leading-6 text-muted-foreground">
+          Automatic EmailJS sending is limited to 10 active addresses per publication until a background queue is installed. The backend sends one recipient per request, respects unsubscribe status, and logs failures. Welcome emails and publication emails each use their own template.
+        </p>
+        <p className="mt-3 flex flex-wrap gap-4 text-sm">
+          <a href="https://dashboard.emailjs.com/admin/templates" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Configure EmailJS templates</a>
+          <a href="https://github.com/Thanuka9/Tjay-Blog/blob/master/docs/EMAILJS_SETUP.md" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Setup instructions</a>
+        </p>
+      </section>
+
       <div className="rounded-xl border border-border">
         <Table>
           <TableHeader>
@@ -70,7 +103,7 @@ export default async function SubscribersPage() {
       <section>
         <h2 className="font-serif text-xl">Outbox</h2>
         <p className="mt-1 mb-4 text-sm text-muted-foreground">
-          Welcome mail, new-article notices, and admin digests.
+          Welcome mail, new-article notices, and admin digests. “Accepted” means the sending service accepted the request; check the recipient inbox for delivery.
         </p>
         <div className="rounded-xl border border-border">
           <Table>
@@ -95,7 +128,7 @@ export default async function SubscribersPage() {
                     <TableCell>{row.to}</TableCell>
                     <TableCell>{row.subject}</TableCell>
                     <TableCell className="capitalize">{row.kind}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.status}</TableCell>
+                    <TableCell className="text-muted-foreground" title={row.error ?? undefined}>{row.status === "sent" ? "Accepted" : row.status === "logged" ? "Not sent" : `Failed${row.error ? `: ${row.error}` : ""}`}</TableCell>
                   </TableRow>
                 ))
               )}

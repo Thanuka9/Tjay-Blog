@@ -7,16 +7,16 @@ export async function subscribeAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   try {
     const result = await addSubscriber(email);
-    if (!result.already) {
-      await sendWelcomeEmail(result.subscriber).catch(() => {
-        // Subscription still succeeds if mail is not configured.
-      });
-    }
+    const welcome = result.already
+      ? null
+      : await sendWelcomeEmail(result.subscriber).catch(() => ({ sent: false as const }));
     return {
       ok: true as const,
       message: result.already
         ? "You are already on the list."
-        : "You are in. Check your inbox for the latest pieces.",
+        : welcome?.sent
+          ? "You are in. Your welcome email is on its way."
+          : "You are subscribed. Email delivery is not active yet; you will still appear in the subscriber list.",
     };
   } catch (error) {
     return {
