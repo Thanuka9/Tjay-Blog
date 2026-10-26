@@ -1,4 +1,5 @@
 import { SendDigestButton } from "@/components/admin/SendDigestButton";
+import { EmailJsTestControls } from "@/components/admin/EmailJsTestControls";
 import {
   Table,
   TableBody,
@@ -18,9 +19,10 @@ export default async function SubscribersPage() {
   ]);
   const active = subscribers.filter((sub) => !sub.unsubscribedAt);
   const health = mailHealth();
-  const sent = outbox.filter((mail) => mail.status === "sent").length;
-  const failed = outbox.filter((mail) => mail.status === "failed").length;
-  const logged = outbox.filter((mail) => mail.status === "logged").length;
+  const operational = outbox.filter((mail) => !mail.subject.startsWith("[TEST]"));
+  const sent = operational.filter((mail) => mail.status === "sent").length;
+  const failed = operational.filter((mail) => mail.status === "failed").length;
+  const logged = operational.filter((mail) => mail.status === "logged").length;
 
   return (
     <div className="space-y-8">
@@ -37,7 +39,7 @@ export default async function SubscribersPage() {
       </div>
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Subscriber and email health">
         <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Active subscribers</p><p className="mt-2 font-serif text-4xl">{active.length}</p><p className="text-xs text-muted-foreground">{subscribers.length - active.length} unsubscribed</p></div>
-        <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Email service</p><p className="mt-2 text-xl font-semibold">{health.provider}</p><p className="mt-2 text-xs text-muted-foreground">{health.emailJsReady ? "Welcome + article templates configured" : "EmailJS setup is incomplete"}</p></div>
+        <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Email service</p><p className="mt-2 text-xl font-semibold">{health.provider}</p><p className="mt-2 text-xs text-muted-foreground">{health.emailJsReady ? "Welcome + article keys configured; delivery not yet verified" : "EmailJS setup is incomplete"}</p></div>
         <div className="rounded-xl border border-border p-5"><p className="text-sm text-muted-foreground">Outbox history</p><p className="mt-2 text-xl font-semibold">{sent} accepted · {failed} failed</p><p className="mt-2 text-xs text-muted-foreground">{logged} logged without sending. Accepted does not guarantee inbox delivery.</p></div>
       </section>
 
@@ -56,11 +58,12 @@ export default async function SubscribersPage() {
             <ul className="mt-1 list-inside list-disc break-all">{health.missing.map((key) => <li key={key}><code>{key}</code></li>)}</ul>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-emerald-700">Both templates and account keys are present in server settings. Use EmailJS test sending to verify actual delivery.</p>
+          <p className="mt-4 text-sm text-emerald-700">Account keys and template IDs are configured. This does not prove that EmailJS accepts or delivers messages.</p>
         )}
         <p className="mt-4 text-xs leading-6 text-muted-foreground">
           Automatic EmailJS sending is limited to 10 active addresses per publication until a background queue is installed. The backend sends one recipient per request, respects unsubscribe status, and logs failures. Welcome emails and publication emails each use their own template.
         </p>
+        <EmailJsTestControls enabled={health.emailJsReady} />
         <p className="mt-3 flex flex-wrap gap-4 text-sm">
           <a href="https://dashboard.emailjs.com/admin/templates" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Configure EmailJS templates</a>
           <a href="https://github.com/Thanuka9/Tjay-Blog/blob/master/docs/EMAILJS_SETUP.md" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Setup instructions</a>

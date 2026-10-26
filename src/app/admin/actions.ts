@@ -10,7 +10,7 @@ import {
   requireAdmin,
   setSessionCookie,
 } from "@/lib/auth";
-import { notifySubscribersOfNewArticle, sendLatestDigest } from "@/lib/mail";
+import { notifySubscribersOfNewArticle, sendEmailJsTest, sendLatestDigest } from "@/lib/mail";
 import { slugify } from "@/lib/site";
 import {
   deletePost,
@@ -261,6 +261,22 @@ export async function deleteTopicAction(formData: FormData) {
       message:
         error instanceof Error ? error.message : "Could not delete topic.",
     };
+  }
+}
+
+export async function sendEmailJsTestAction(kind: string) {
+  await requireAdmin();
+  if (kind !== "welcome" && kind !== "published") {
+    return { ok: false as const, message: "Unknown EmailJS template." };
+  }
+  try {
+    const result = await sendEmailJsTest(kind);
+    revalidatePath("/admin/subscribers");
+    return result.sent
+      ? { ok: true as const, message: "EmailJS accepted the test message for the corrections inbox. Check that mailbox for actual delivery." }
+      : { ok: false as const, message: "EmailJS did not accept this test email. Review the outbox error in Admin → Subscribers." };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "EmailJS test failed." };
   }
 }
 

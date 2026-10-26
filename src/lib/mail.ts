@@ -9,11 +9,12 @@ import {
 import type { OutboundMail, PostMeta, Subscriber } from "@/lib/types";
 
 export function siteUrl() {
-  return (
-    process.env.SITE_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.NODE_ENV === "production" ? publicationUrl() : "http://localhost:3000")
-  ).replace(/\/$/, "");
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  // A sample localhost URL must never enter production unsubscribe links.
+  if (process.env.NODE_ENV === "production" && (!configured || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(configured))) {
+    return publicationUrl();
+  }
+  return (configured || "http://localhost:3000").replace(/\/$/, "");
 }
 
 function mailFrom() {
@@ -298,6 +299,17 @@ export async function notifySubscribersOfNewArticle(post: PostMeta) {
   const subscribers = (await listSubscribers()).filter(
     (sub) => !sub.unsubscribedAt,
   );
+  // Do not claim a publication notification was sent when no provider is configured.
+  if (subscribers.length && !mailConfigured()) {
+    await recordOutboundMail({
+      to: "MAILING_LIST",
+      subject: `Publication notification not sent: ${post.title}`,
+      kind: "published",
+      status: "failed",
+      error: "Email delivery unavailable. Configure EmailJS Public/Private Keys (or Resend) before publishing.",
+    });
+    return { attempted: 0, sent: 0, skipped: subscribers.length };
+  }
   // EmailJS enforces one request per second. Personalize each message so
   // recipient addresses and unsubscribe tokens are never shared.
   if (emailJsConfigured()) {
@@ -329,6 +341,50 @@ export async function notifySubscribersOfNewArticle(post: PostMeta) {
     ).length,
     skipped: 0,
   };
+}
+
+/** Admin-only explicit test. Does not subscribe anyone or mail the reader list. */
+export async function sendEmailJsTest(kind: "welcome" | "published") {
+  if (!emailJsConfigured()) {
+    throw new Error("EmailJS Public Key and Private Key must first be configured in the server environment.");
+  }
+  const latest = (await listPublishedPosts())[0];
+  const testLink = latest ? articleUrl(latest.slug) : `${siteUrl()}/articles`;
+  const common = {
+    site_url: siteUrl(),
+    // Test messages must not include a real subscriber's secret unsubscribe token.
+    unsubscribe_url: `${siteUrl()}/newsletter`,
+  };
+  const emailJs = kind === "welcome"
+    ? {
+        template: "welcome" as const,
+        params: {
+          ...common,
+          latest_article_title: latest?.title || "Read the journal",
+          latest_article_url: testLink,
+        },
+      }
+    : {
+        template: "published" as const,
+        params: {
+          ...common,
+          article_title: latest?.title || "EmailJS test article",
+          article_excerpt: latest?.excerpt || "Testing the newsletter connection.",
+          article_url: testLink,
+          article_code: latest?.articleCode || "TEST",
+          published_date: new Intl.DateTimeFormat("en-US", {
+            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+          }).format(new Date()),
+        },
+      };
+  return deliver({
+    to: site.correctionsEmail,
+    subject: `[TEST] ${kind === "welcome" ? "Welcome" : "New article"} EmailJS template`,
+    html: "",
+    text: "",
+    kind,
+    emailJs,
+  });
 }
 
 export async function sendLatestDigest() {
