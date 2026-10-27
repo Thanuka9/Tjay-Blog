@@ -5,15 +5,17 @@ import { getAdminCommentStats, listAdminComments } from "@/lib/admin-comments";
 import { formatDate } from "@/lib/site";
 import { getDashboardStats, listIssueMeta, listTopics, listOutboundMail } from "@/lib/store";
 import { mailHealth } from "@/lib/mail";
+import { newsletterQueueStats } from "@/lib/newsletter-queue";
 
 export default async function AdminHomePage() {
-  const [stats, topics, issues, commentStats, recentComments, outbox] = await Promise.all([
+  const [stats, topics, issues, commentStats, recentComments, outbox, deliveryQueue] = await Promise.all([
     getDashboardStats(),
     listTopics(),
     listIssueMeta(),
     getAdminCommentStats(),
     listAdminComments(5),
     listOutboundMail(),
+    newsletterQueueStats(),
   ]);
   const topicNames = Object.fromEntries(
     topics.map((topic) => [topic.slug, topic.name]),
@@ -101,8 +103,8 @@ export default async function AdminHomePage() {
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-serif text-xl">System</h2>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
-              Connected
+              <span className={`size-2 rounded-full ${mail.emailJsReady ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
+              {mail.emailJsReady ? "Mail configured" : "Mail needs setup"}
             </span>
           </div>
           <dl className="mt-5 space-y-3 text-sm">
@@ -115,8 +117,20 @@ export default async function AdminHomePage() {
               <dd className="font-medium">{mail.provider}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-muted-foreground">EmailJS templates</dt>
-              <dd className="font-medium">{mail.emailJsReady ? "Ready" : "Not configured"}</dd>
+              <dt className="text-muted-foreground">EmailJS credentials</dt>
+              <dd className="font-medium">{mail.emailJsReady ? "Configured" : "Action needed"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Pending notifications</dt>
+              <dd className="font-medium">{deliveryQueue.pending}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Accepted notifications</dt>
+              <dd className="font-medium">{deliveryQueue.sent}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Failed notifications</dt>
+              <dd className="font-medium">{deliveryQueue.failed}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted-foreground">Mail failures (recent)</dt>
