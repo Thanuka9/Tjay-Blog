@@ -8,6 +8,8 @@ import { articleIssueId } from "@/lib/issues";
 import { notFound } from "next/navigation";
 import { PostEditor } from "@/components/admin/PostEditor";
 
+export const maxDuration = 300;
+
 export default async function EditPostPage({
   params,
 }: {
