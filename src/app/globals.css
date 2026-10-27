@@ -523,3 +523,18 @@
   .chart-data::details-content { content-visibility: visible !important; }
   .chart-data summary { display: none; }
 }
+
+/* Readability adjustments (retain the October 23 journal layout and cover geometry). */
+@media (min-width: 768px) {
+  .journal-site .journal-entry-excerpt { font-size: 17px; line-height: 1.68; }
+  .journal-site .journal-entry-meta { font-size: 13px; line-height: 1.55; }
+  .journal-site .article-prose { font-size: 19px; line-height: 1.76; }
+  .journal-site .article-deck { line-height: 1.52; }
+  .journal-site .article-contents a { font-size: 14px; line-height: 1.55; }
+  .journal-site .journal-header nav a { font-size: 14px; }
+}
+@media (max-width: 767px) {
+  .journal-site .journal-entry-excerpt { font-size: 16px; line-height: 1.65; }
+  .journal-site .article-prose { font-size: 18.5px; line-height: 1.74; }
+  .journal-site .article-figure figcaption { font-size: 13px; line-height: 1.65; }
+}
