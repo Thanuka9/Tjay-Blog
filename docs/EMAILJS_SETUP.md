@@ -20,7 +20,7 @@ The website already stores subscribers in Neon (or Vercel Blob in local developm
 - Dynamic parameters: `to_email`, `site_url`, `latest_article_title`, `latest_article_url`, `unsubscribe_url`.
 
 **Template B: New Article**
-- Suggested Template ID: `template_k04dawk`
+- Actual Template ID: `template_k04dawk`
 - Subject: `New from The Abyss: {{article_title}}`
 - To Email: `{{to_email}}`
 - From Name: `The Abyss`
@@ -55,6 +55,8 @@ Set the following under **Vercel → Project → Settings → Environment Variab
 
 ```dotenv
 SITE_URL=https://theabyssos.com
+DATA_BACKEND=neon
+CRON_SECRET=YOUR_SECRET
 EMAILJS_SERVICE_ID=service_59u3x2h
 EMAILJS_PUBLIC_KEY=YOUR_PUBLIC_KEY
 EMAILJS_PRIVATE_KEY=YOUR_PRIVATE_KEY
@@ -62,7 +64,7 @@ EMAILJS_WELCOME_TEMPLATE_ID=template_hx9pl8s
 EMAILJS_ARTICLE_TEMPLATE_ID=template_k04dawk
 ```
 
-The IDs are taken from your EmailJS dashboard screenshots. You only need to set the Public and Private Keys in Vercel; service/template IDs have safe project defaults and can be overridden through environment variables. If all five EmailJS settings are present, the website uses EmailJS for welcome and new-article emails. Otherwise it preserves the earlier Resend fallback (`RESEND_API_KEY`), or logs unsent messages in the admin outbox.
+The Gmail service and template IDs are configured in Vercel production. An encrypted CRON_SECRET has also been installed. Only the EmailJS Public and Private Keys still need to be entered by the account owner. You only need to set the Public and Private Keys in Vercel; service/template IDs have safe project defaults and can be overridden through environment variables. If all five EmailJS settings are present, the website uses EmailJS for welcome and new-article emails. Otherwise it preserves the earlier Resend fallback (`RESEND_API_KEY`), or logs unsent messages in the admin outbox.
 
 **Do not put email credentials in Git, client-side `NEXT_PUBLIC_` variables, or browser code.** Redeploy after adding environment variables.
 
@@ -75,7 +77,10 @@ The IDs are taken from your EmailJS dashboard screenshots. You only need to set 
 - Unsubscribed addresses: excluded. An unsubscribe link opens a **confirmation page**; only the confirmation POST opts the subscriber out, so mailbox security scanners do not inadvertently unsubscribe them.
 - Visit `/admin/subscribers` to verify active subscribers, missing EmailJS configuration, template IDs, Gmail service match and recent send logs.
 - If email delivery fails, article publication still succeeds but the editor shows a warning; review failed rows in the outbox. A successful EmailJS API response means accepted by the service, not necessarily inbox delivery.
-- The EmailJS API has a **one-request-per-second** limit, so sending is sequential at ~1.1 seconds between sends. The current synchronous integration is deliberately limited to **10 active recipients** to avoid long-running publication requests. If the active subscriber count exceeds 10, no EmailJS campaign is started and a failure record is created in the admin outbox. For larger lists, replace synchronous sending with a persistent job queue or a dedicated campaign provider. This is a small-list setup, not an unlimited bulk-mail sender.
+- **Persistent mailing queue:** On initial publication, one record is added for each opted-in reader to the Neon delivery queue, with a unique article/subscriber key. The sender starts automatically after the editor saves the article.
+- **Resume and recovery:** An authenticated daily Vercel cron and Admin → Subscribers manual controls process remaining batches. The worker serializes requests (approximately one every 1.15 seconds) and processes up to 95 per run; remaining recipients stay queued.
+- **Limits:** Vercel Hobby cron jobs can only run daily, and EmailJS/Gmail account quotas still apply. A request that was interrupted after sending remains marked sending for human review, avoiding risky automatic duplicate attempts.
+- **Historical records:** Messages logged before EmailJS was configured are not silently resent.
 - EmailJS free plan currently allows 2 templates and 200 requests per month. One welcome or one subscriber notification counts as one request.
 - The website's manual **Email latest articles** digest remains a Resend-only function; it is not secretly sent using the Article template.
 - Avoid importing non-consenting addresses. Use your existing explicit newsletter signups.
