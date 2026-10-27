@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 
 import { publicationUrl, site } from "@/lib/site";
 import {
@@ -228,7 +229,8 @@ export function mailHealth() {
     serviceId: process.env.EMAILJS_SERVICE_ID?.trim() || "service_59u3x2h",
     welcomeTemplateId: process.env.EMAILJS_WELCOME_TEMPLATE_ID?.trim() || "template_hx9pl8s",
     articleTemplateId: process.env.EMAILJS_ARTICLE_TEMPLATE_ID?.trim() || "template_k04dawk",
-    emailJsRecipientLimit: 10,
+    newsletterQueueEnabled: process.env.DATA_BACKEND === "neon",
+    newsletterBatchLimit: 95,
   };
 }
 
@@ -295,96 +297,19 @@ export async function sendNewArticleEmail(
   });
 }
 
+/** First publication: save a durable row for every active subscriber, then
+ * begin delivery after responding to the editor. Cron resumes incomplete runs.
+ */
 export async function notifySubscribersOfNewArticle(post: PostMeta) {
-  const subscribers = (await listSubscribers()).filter(
-    (sub) => !sub.unsubscribedAt,
-  );
-  // Do not claim a publication notification was sent when no provider is configured.
-  if (subscribers.length && !mailConfigured()) {
-    await recordOutboundMail({
-      to: "MAILING_LIST",
-      subject: `Publication notification not sent: ${post.title}`,
-      kind: "published",
-      status: "failed",
-      error: "Email delivery unavailable. Configure EmailJS Public/Private Keys (or Resend) before publishing.",
+  const { enqueueNewArticle, processNewsletterQueue } = await import("@/lib/newsletter-queue");
+  const job = await enqueueNewArticle(post);
+  if (job.newlyQueued && job.configured) {
+    after(async () => {
+      try { await processNewsletterQueue(95); }
+      catch (error) { console.error("Newsletter queue worker failed:", error); }
     });
-    return { attempted: 0, sent: 0, skipped: subscribers.length };
   }
-  // EmailJS enforces one request per second. Personalize each message so
-  // recipient addresses and unsubscribe tokens are never shared.
-  if (emailJsConfigured()) {
-    if (subscribers.length > 10) {
-      await recordOutboundMail({
-        to: "MAILING_LIST",
-        subject: `New article queued for external campaign: ${post.title}`,
-        kind: "published",
-        status: "failed",
-        error: "More than 10 subscribers: the synchronous EmailJS sender is intentionally disabled. Use a background queue/campaign provider before retrying.",
-      });
-      return { attempted: 0, sent: 0, skipped: subscribers.length };
-    }
-    let sent = 0;
-    for (const [index, subscriber] of subscribers.entries()) {
-      if (index > 0) await new Promise((resolve) => setTimeout(resolve, 1100));
-      const result = await sendNewArticleEmail(subscriber, post);
-      if (result.sent) sent += 1;
-    }
-    return { attempted: subscribers.length, sent, skipped: 0 };
-  }
-  const results = await Promise.allSettled(
-    subscribers.map((subscriber) => sendNewArticleEmail(subscriber, post)),
-  );
-  return {
-    attempted: subscribers.length,
-    sent: results.filter(
-      (result) => result.status === "fulfilled" && result.value.sent,
-    ).length,
-    skipped: 0,
-  };
-}
-
-/** Admin-only explicit test. Does not subscribe anyone or mail the reader list. */
-export async function sendEmailJsTest(kind: "welcome" | "published") {
-  if (!emailJsConfigured()) {
-    throw new Error("EmailJS Public Key and Private Key must first be configured in the server environment.");
-  }
-  const latest = (await listPublishedPosts())[0];
-  const testLink = latest ? articleUrl(latest.slug) : `${siteUrl()}/articles`;
-  const common = {
-    site_url: siteUrl(),
-    // Test messages must not include a real subscriber's secret unsubscribe token.
-    unsubscribe_url: `${siteUrl()}/newsletter`,
-  };
-  const emailJs = kind === "welcome"
-    ? {
-        template: "welcome" as const,
-        params: {
-          ...common,
-          latest_article_title: latest?.title || "Read the journal",
-          latest_article_url: testLink,
-        },
-      }
-    : {
-        template: "published" as const,
-        params: {
-          ...common,
-          article_title: latest?.title || "EmailJS test article",
-          article_excerpt: latest?.excerpt || "Testing the newsletter connection.",
-          article_url: testLink,
-          article_code: latest?.articleCode || "TEST",
-          published_date: new Intl.DateTimeFormat("en-US", {
-            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
-          }).format(new Date()),
-        },
-      };
-  return deliver({
-    to: site.correctionsEmail,
-    subject: `[TEST] ${kind === "welcome" ? "Welcome" : "New article"} EmailJS template`,
-    html: "",
-    text: "",
-    kind,
-    emailJs,
-  });
+  return { queued: job.newlyQueued, configured: job.configured };
 }
 
 export async function sendLatestDigest() {
