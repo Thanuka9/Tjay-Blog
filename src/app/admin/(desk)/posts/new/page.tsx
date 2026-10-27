@@ -1,6 +1,8 @@
 import { PostEditor } from "@/components/admin/PostEditor";
 import { listTopics, listIssueMeta } from "@/lib/store";
 
+export const maxDuration = 300;
+
 export default async function NewPostPage() {
   const [topics, issues] = await Promise.all([listTopics(), listIssueMeta()]);
   const defaultTopic = topics[0]?.slug ?? "longevity";
