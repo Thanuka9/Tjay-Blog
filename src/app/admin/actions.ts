@@ -10,7 +10,9 @@ import {
   requireAdmin,
   setSessionCookie,
 } from "@/lib/auth";
-import { notifySubscribersOfNewArticle, sendEmailJsTest, sendLatestDigest } from "@/lib/mail";
+import { mailConfigured, notifySubscribersOfNewArticle, sendEmailJsTest, sendLatestDigest } from "@/lib/mail";
+import { processNewsletterQueue, retryFailedNewsletter } from "@/lib/newsletter-queue";
+import { after } from "next/server";
 import { slugify } from "@/lib/site";
 import {
   deletePost,
@@ -145,15 +147,11 @@ export async function savePostAction(formData: FormData) {
     if (post.status === "published" && existing?.status !== "published") {
       try {
         const result = await notifySubscribersOfNewArticle(post);
-        emailStatus = result.skipped
-          ? `Article is live. Newsletter sending was held for ${result.skipped} recipients; see Subscribers → Outbox.`
-          : result.attempted === 0
-            ? "Article is live. There are no active recipients to notify."
-            : result.sent === result.attempted
-              ? `Email provider accepted ${result.sent} publication notifications.`
-              : `Article is live, but only ${result.sent}/${result.attempted} notifications were accepted. Check Subscribers → Outbox.`;
+        emailStatus = result.configured
+          ? `Article is live. Notifications queued for ${result.queued} active subscribers; delivery runs in the background.`
+          : `Article is live. ${result.queued} recipients queued, but sending is paused until EmailJS keys are configured.`;
       } catch (error) {
-        emailStatus = `Article is live, but notification failed: ${error instanceof Error ? error.message : "Unknown error"}.`;
+        emailStatus = `Article is live, but newsletter queueing failed: ${error instanceof Error ? error.message : "Unknown error"}.`;
       }
     }
 
@@ -277,6 +275,41 @@ export async function sendEmailJsTestAction(kind: string) {
       : { ok: false as const, message: "EmailJS did not accept this test email. Review the outbox error in Admin → Subscribers." };
   } catch (error) {
     return { ok: false as const, message: error instanceof Error ? error.message : "EmailJS test failed." };
+  }
+}
+
+/** Admin can continue pending sends without altering newsletter subscriptions. */
+export async function processNewsletterQueueAction() {
+  await requireAdmin();
+  if (!mailConfigured()) {
+    return { ok: false as const, message: "EmailJS API keys are missing. Add them to Vercel first." };
+  }
+  try {
+    after(async () => {
+      try { await processNewsletterQueue(95); }
+      catch (error) { console.error("Admin newsletter dispatch failed:", error); }
+    });
+    revalidatePath("/admin/subscribers");
+    return { ok: true as const, message: "Started processing pending email notifications. Refresh this page to see results." };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "Unable to start delivery." };
+  }
+}
+
+export async function retryFailedNewsletterAction() {
+  await requireAdmin();
+  try {
+    const count = await retryFailedNewsletter();
+    if (count && mailConfigured()) {
+      after(async () => {
+        try { await processNewsletterQueue(95); }
+        catch (error) { console.error("Newsletter retry failed:", error); }
+      });
+    }
+    revalidatePath("/admin/subscribers");
+    return { ok: true as const, message: `${count} failed recipient notifications returned to the queue.` };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "Retry failed." };
   }
 }
 
