@@ -312,6 +312,49 @@ export async function notifySubscribersOfNewArticle(post: PostMeta) {
   return { queued: job.newlyQueued, configured: job.configured };
 }
 
+export async function sendEmailJsTest(kind: "welcome" | "published") {
+  if (!emailJsConfigured()) {
+    throw new Error("EmailJS Public Key and Private Key must first be configured in the server environment.");
+  }
+  const latest = (await listPublishedPosts())[0];
+  const testLink = latest ? articleUrl(latest.slug) : `${siteUrl()}/articles`;
+  const common = {
+    site_url: siteUrl(),
+    // Test messages must not include a real subscriber's secret unsubscribe token.
+    unsubscribe_url: `${siteUrl()}/newsletter`,
+  };
+  const emailJs = kind === "welcome"
+    ? {
+        template: "welcome" as const,
+        params: {
+          ...common,
+          latest_article_title: latest?.title || "Read the journal",
+          latest_article_url: testLink,
+        },
+      }
+    : {
+        template: "published" as const,
+        params: {
+          ...common,
+          article_title: latest?.title || "EmailJS test article",
+          article_excerpt: latest?.excerpt || "Testing the newsletter connection.",
+          article_url: testLink,
+          article_code: latest?.articleCode || "TEST",
+          published_date: new Intl.DateTimeFormat("en-US", {
+            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+          }).format(new Date()),
+        },
+      };
+  return deliver({
+    to: site.correctionsEmail,
+    subject: `[TEST] ${kind === "welcome" ? "Welcome" : "New article"} EmailJS template`,
+    html: "",
+    text: "",
+    kind,
+    emailJs,
+  });
+}
+
 export async function sendLatestDigest() {
   const [subscribers, posts] = await Promise.all([
     listSubscribers(),
