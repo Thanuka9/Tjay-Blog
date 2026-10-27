@@ -14,6 +14,8 @@ import { formatDate } from "@/lib/site";
 import { mailHealth } from "@/lib/mail";
 import { listOutboundMail, listSubscribers } from "@/lib/store";
 
+export const maxDuration = 300;
+
 export default async function SubscribersPage() {
   const [subscribers, outbox, queue, recentQueue] = await Promise.all([
     listSubscribers(),
