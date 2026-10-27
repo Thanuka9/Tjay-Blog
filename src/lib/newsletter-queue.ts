@@ -99,7 +99,13 @@ export async function processNewsletterQueue(maxRecipients = 95) {
       if (!job) break;
       processed++;
       const sub = subscriberMap.get(job.subscriber_id);
-      if (!sub || sub.unsubscribedAt || sub.email !== job.recipient) {
+      // Re-read consent immediately before delivery: a subscriber may opt out
+      // while an earlier address in the same large campaign is processing.
+      const latest = await db()`
+        SELECT email, unsubscribed_at FROM subscribers WHERE id=${job.subscriber_id}
+      `;
+      if (!sub || !latest[0] || latest[0].unsubscribed_at ||
+          String(latest[0].email) !== job.recipient) {
         await complete(job.id, "skipped", "Recipient unsubscribed or changed.");
         skipped++;
         continue;
