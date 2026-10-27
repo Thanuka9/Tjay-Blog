@@ -1,5 +1,7 @@
 import { SendDigestButton } from "@/components/admin/SendDigestButton";
 import { EmailJsTestControls } from "@/components/admin/EmailJsTestControls";
+import { NewsletterDeliveryControls } from "@/components/admin/NewsletterDeliveryControls";
+import { newsletterQueueRecent, newsletterQueueStats } from "@/lib/newsletter-queue";
 import {
   Table,
   TableBody,
@@ -13,9 +15,11 @@ import { mailHealth } from "@/lib/mail";
 import { listOutboundMail, listSubscribers } from "@/lib/store";
 
 export default async function SubscribersPage() {
-  const [subscribers, outbox] = await Promise.all([
+  const [subscribers, outbox, queue, recentQueue] = await Promise.all([
     listSubscribers(),
     listOutboundMail(),
+    newsletterQueueStats(),
+    newsletterQueueRecent(),
   ]);
   const active = subscribers.filter((sub) => !sub.unsubscribedAt);
   const health = mailHealth();
@@ -28,7 +32,7 @@ export default async function SubscribersPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl">Subscribers</h1>
+          <h1 className="font-serif text-4xl">Subscribers</h1>
           <p className="text-sm text-muted-foreground">
             {active.length} {active.length === 1 ? "address" : "addresses"} on the
             list.
@@ -45,7 +49,7 @@ export default async function SubscribersPage() {
 
       <section className="rounded-xl border border-border p-5">
         <h2 className="font-serif text-xl">EmailJS configuration</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Connected Gmail service shown in EmailJS: <code>service_59u3x2h</code>. Server environment is checked below. Never paste private keys into the website or source code.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Connected Gmail service: <code>service_59u3x2h</code>. Server environment is checked below. Never paste private keys into the website or source code.</p>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-muted-foreground">Configured service ID</dt><dd className="font-medium break-all">{health.serviceId ?? "Missing"}</dd></div>
           <div><dt className="text-muted-foreground">Service match</dt><dd className="font-medium">{health.serviceId ? (health.serviceId === "service_59u3x2h" ? "Matches Gmail screenshot" : "Different from Gmail screenshot — check service") : "Not configured yet"}</dd></div>
@@ -61,13 +65,58 @@ export default async function SubscribersPage() {
           <p className="mt-4 text-sm text-emerald-700">Account keys and template IDs are configured. This does not prove that EmailJS accepts or delivers messages.</p>
         )}
         <p className="mt-4 text-xs leading-6 text-muted-foreground">
-          Automatic EmailJS sending is limited to 10 active addresses per publication until a background queue is installed. The backend sends one recipient per request, respects unsubscribe status, and logs failures. Welcome emails and publication emails each use their own template.
+          Every new article is automatically queued for every active subscriber. The sender follows EmailJS's one-request-per-second limit. Pending messages survive deployments and resume automatically; an authenticated daily worker is the recovery mechanism. Account sending quotas still apply.
         </p>
         <EmailJsTestControls enabled={health.emailJsReady} />
         <p className="mt-3 flex flex-wrap gap-4 text-sm">
           <a href="https://dashboard.emailjs.com/admin/templates" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Configure EmailJS templates</a>
           <a href="https://github.com/Thanuka9/Tjay-Blog/blob/master/docs/EMAILJS_SETUP.md" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">Setup instructions</a>
         </p>
+      </section>
+
+      <section className="rounded-xl border border-border p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-2xl">Publication email queue</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">One personalized notification per active reader and article. Duplicate publication attempts do not create duplicate queue records.</p>
+          </div>
+          <NewsletterDeliveryControls enabled={health.configured} retryable={queue.failed > 0} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-5">
+          {([
+            ["Pending", queue.pending],
+            ["Sending / review", queue.sending],
+            ["Accepted", queue.sent],
+            ["Failed", queue.failed],
+            ["Skipped", queue.skipped],
+          ] as const).map(([label, count]) => (
+            <div key={label} className="rounded-lg bg-muted/40 p-3">
+              <p className="text-sm text-muted-foreground">{label}</p>
+              <p className="mt-1 font-serif text-3xl">{count}</p>
+            </div>
+          ))}
+        </div>
+        {queue.sending ? <p className="text-sm text-amber-700">A delivery is in progress or needs manual review. Uncertain requests are not automatically resent to avoid duplicates.</p> : null}
+        {!health.configured && queue.pending ? <p className="text-sm text-amber-700">These recipients are queued. Enter the EmailJS Public and Private Keys in Vercel to activate sending.</p> : null}
+        <p className="text-xs text-muted-foreground">Accepted means EmailJS accepted the request; it does not guarantee inbox delivery. The daily recovery job runs on the Hobby schedule, so large campaigns may take longer.</p>
+        {recentQueue.length > 0 && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Recipient</TableHead><TableHead>Article</TableHead><TableHead>Status</TableHead><TableHead>Attempts</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {recentQueue.slice(0, 20).map((job, index) => (
+                  <TableRow key={`${job.post_id}-${job.recipient}-${index}`}>
+                    <TableCell className="break-all">{job.recipient}</TableCell>
+                    <TableCell className="max-w-44 truncate" title={job.post_id}>{job.post_id}</TableCell>
+                    <TableCell className="capitalize">{job.status}</TableCell>
+                    <TableCell>{job.attempts}</TableCell>
+                    <TableCell className="max-w-64 text-sm text-muted-foreground">{job.last_error || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </section>
 
       <div className="rounded-xl border border-border">
