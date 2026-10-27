@@ -538,3 +538,168 @@
   .journal-site .article-prose { font-size: 18.5px; line-height: 1.74; }
   .journal-site .article-figure figcaption { font-size: 13px; line-height: 1.65; }
 }
+
+
+/* Editorial landing-page polish. Typography, spacing, and interactions only.
+   No color tokens, cover geometry, issue metadata, or editorial content change. */
+.home-editorial .journal-masthead {
+  padding-top: clamp(42px, 5.2vw, 70px);
+  padding-bottom: clamp(34px, 4vw, 52px);
+}
+.home-editorial .journal-masthead h1 {
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  font-size: clamp(66px, 10.2vw, 140px);
+  letter-spacing: -0.038em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+.home-editorial .journal-masthead p {
+  max-width: 32ch;
+  margin-inline: auto;
+  font-size: clamp(20px, 2.2vw, 24px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+.home-editorial .current-issue {
+  gap: clamp(34px, 4.6vw, 62px);
+  padding-block: clamp(46px, 5vw, 66px);
+}
+.home-editorial .current-issue > div {
+  min-width: 0;
+}
+.home-editorial .current-issue > div:first-child > a {
+  display: block;
+  transition: transform 200ms ease, filter 200ms ease;
+}
+.home-editorial .current-issue-meta {
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  letter-spacing: 0.005em;
+}
+.home-editorial .issue-contents-heading {
+  margin-top: 25px;
+  margin-bottom: 17px;
+  font-size: clamp(36px, 3.6vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.home-editorial .journal-entry {
+  padding-block: 27px;
+}
+.home-editorial .journal-entry h3 {
+  max-width: 34ch;
+  font-size: clamp(25px, 2.3vw, 30px);
+  line-height: 1.21;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
+}
+.home-editorial .journal-entry-excerpt {
+  max-width: 65ch;
+  margin-top: 11px;
+  font-size: 17.5px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.home-editorial .journal-entry-meta {
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.home-editorial .issue-home-actions {
+  margin-top: 21px;
+  gap: 14px 25px;
+  font-size: 15px;
+  letter-spacing: 0.012em;
+}
+.home-editorial .issue-home-actions > a {
+  line-height: 1.45;
+  text-underline-offset: 4px;
+}
+.home-editorial .journal-download {
+  padding: 13px 17px;
+  font-size: 13px;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.home-editorial .journal-archive {
+  padding-top: 34px;
+  padding-bottom: clamp(64px, 7vw, 96px);
+}
+.home-editorial .archive-heading {
+  margin-bottom: 35px;
+}
+.home-editorial .archive-heading h2 {
+  font-size: clamp(40px, 4.6vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+.home-editorial .archive-heading a {
+  font-size: 15px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.home-editorial .archive-item {
+  min-width: 0;
+  transition: transform 180ms ease;
+}
+.home-editorial .archive-item h3 {
+  font-size: 19px;
+  line-height: 1.35;
+  margin-top: 21px;
+}
+.home-editorial .archive-item > p {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.journal-site .journal-header nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-underline-offset: 5px;
+  font-size: 14px;
+  letter-spacing: 0.025em;
+}
+.journal-site .journal-newsletter h2 {
+  font-size: clamp(36px, 3.6vw, 44px);
+  line-height: 1.16;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.journal-site .journal-newsletter p {
+  max-width: 56ch;
+  font-size: 17px;
+  line-height: 1.68;
+  text-wrap: pretty;
+}
+.journal-site .newsletter-form [data-slot="input"],
+.journal-site .newsletter-form [data-slot="button"] {
+  min-height: 48px;
+  font-size: 16px;
+}
+.journal-site .newsletter-form [role="status"],
+.journal-site .newsletter-form [role="alert"] {
+  color: var(--background);
+  line-height: 1.5;
+}
+@media (hover: hover) and (pointer: fine) {
+  .home-editorial .current-issue > div:first-child > a:hover {
+    transform: translateY(-3px);
+  }
+  .home-editorial .archive-item:hover {
+    transform: translateY(-3px);
+  }
+  .home-editorial .journal-entry h3 a:hover,
+  .home-editorial .archive-heading a:hover {
+    text-decoration: underline;
+    text-underline-offset: 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-editorial .current-issue > div:first-child > a,
+  .home-editorial .archive-item {
+    transition: none;
+  }
+}

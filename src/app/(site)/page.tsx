@@ -22,20 +22,20 @@ export default async function HomePage() {
   }) : [];
   return (
     <>
-      <Container>
+      <Container className="home-editorial">
         <section className="journal-masthead">
           <h1><i>The</i> Abyss</h1>
           <p>{site.tagline}</p>
         </section>
         {current ? (
-          <section className="current-issue">
+          <section className="current-issue" aria-labelledby="home-current-issue-title">
             <div><Link href={issuePath(current)} aria-label={`Read ${current.label}`}><IssueCover issue={current} /></Link></div>
             <div>
               <div className="current-issue-meta">
                 <span className="issue-badge">Current issue</span>
                 <span>Vol. {current.volume} | No. {current.number} &middot; {current.label}</span>
               </div>
-              <h2 className="issue-contents-heading">In this issue</h2>
+              <h2 id="home-current-issue-title" className="issue-contents-heading">In this issue</h2>
               <IssueContents issue={current} compact />
               <div className="issue-home-actions">
                 <Link href={issuePath(current)}>View the full issue &rarr;</Link>
@@ -44,9 +44,9 @@ export default async function HomePage() {
             </div>
           </section>
         ) : <p className="py-16">The first issue is on its way. Subscribe to hear when it is published.</p>}
-        <section id="archive" className="journal-archive">
+        <section id="archive" className="journal-archive" aria-labelledby="home-archive-heading">
           <div className="archive-heading">
-            <h2>{current ? `Volume ${current.volume} · ${current.year}–${String(current.year + 1).slice(-2)}` : "Archive"}</h2>
+            <h2 id="home-archive-heading">{current ? `Volume ${current.volume} · ${current.year}–${String(current.year + 1).slice(-2)}` : "Archive"}</h2>
             <Link href="/issues">All issues &rarr;</Link>
           </div>
           <div className="archive-grid">

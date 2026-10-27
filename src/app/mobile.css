@@ -557,3 +557,77 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Compact-screen reading polish, without changing the established design. */
+@media (max-width: 767px) {
+  .journal-site .journal-header nav a {
+    font-size: 13.5px !important;
+    letter-spacing: 0.02em;
+  }
+  .journal-site .brand-mission {
+    font-size: 10.5px;
+    letter-spacing: 0.055em;
+  }
+  .home-editorial .journal-masthead {
+    padding-top: 38px;
+    padding-bottom: 31px;
+  }
+  .home-editorial .journal-masthead h1 {
+    font-size: clamp(51px, 15.8vw, 72px);
+    letter-spacing: -0.034em;
+  }
+  .home-editorial .journal-masthead p {
+    font-size: clamp(18px, 4.7vw, 21px);
+    line-height: 1.45;
+  }
+  .home-editorial .current-issue {
+    gap: 26px;
+    padding-top: 31px;
+    padding-bottom: 45px;
+  }
+  .home-editorial .current-issue-meta {
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .home-editorial .issue-contents-heading {
+    margin-top: 17px;
+    margin-bottom: 11px;
+    font-size: clamp(33px, 8.6vw, 39px);
+  }
+  .home-editorial .journal-entry {
+    padding-block: 24px;
+  }
+  .home-editorial .journal-entry h3 {
+    font-size: clamp(23px, 6.2vw, 27px);
+    line-height: 1.25;
+  }
+  .home-editorial .journal-entry-excerpt {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .home-editorial .journal-entry-meta {
+    font-size: 12.5px;
+  }
+  .home-editorial .issue-home-actions {
+    margin-top: 20px;
+    font-size: 14px;
+  }
+  .home-editorial .journal-archive {
+    padding-top: 30px;
+    padding-bottom: 60px;
+  }
+  .home-editorial .archive-heading h2 {
+    font-size: clamp(33px, 8.5vw, 41px);
+  }
+  .home-editorial .archive-heading a {
+    font-size: 14px;
+  }
+  .journal-site .journal-newsletter h2 {
+    font-size: clamp(31px, 8.5vw, 37px);
+  }
+  .journal-site .journal-newsletter p {
+    font-size: 16px;
+    line-height: 1.66;
+  }
+}
