@@ -37,11 +37,9 @@ export function SiteHeader() {
               pathname === item.href ||
               (item.href === "/issues" && pathname.startsWith("/issues/"));
             const href =
-              home && item.href === "/issues"
-                ? "#archive"
-                : home && item.href === "/newsletter"
-                  ? "#newsletter"
-                  : item.href;
+              home && item.href === "/newsletter"
+                ? "#newsletter"
+                : item.href;
 
             return (
               <Link
