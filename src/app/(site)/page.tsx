@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Container } from "@/components/site/layout";
-import { CoverMedia } from "@/components/site/CoverMedia";
+import { Container, Kicker } from "@/components/site/layout";
+import { IssueCover } from "@/components/site/IssueCover";
 import { JournalNewsletter } from "@/components/site/JournalNewsletter";
-import { issueCoverDescription, issueCoverImage } from "@/lib/issue-cover";
 import { issuePath } from "@/lib/issues";
 import { formatDate, site } from "@/lib/site";
 import { listPublishedIssues } from "@/lib/store";
@@ -11,13 +10,42 @@ export const metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
   const issues = await listPublishedIssues();
-  // Keep Article 01 on the landing page even after newer issues are published.
+  const latestIssue = issues[0];
+
+  // The original Article 01 remains the lead story, even after new issues appear.
   const featuredIssue = issues.find((issue) =>
     issue.posts.some((post) => post.articleCode === "AB-0101"),
-  );
-  const featured = featuredIssue?.posts.find((post) => post.articleCode === "AB-0101");
-  const coverImage = featuredIssue ? issueCoverImage(featuredIssue) : null;
-  const publishedIssueCount = issues.length;
+  ) ?? latestIssue;
+  const featuredArticle = featuredIssue?.posts.find((post) => post.articleCode === "AB-0101")
+    ?? featuredIssue?.posts[0];
+
+  // Match the reference's two-story editorial list, without falsely moving
+  // articles between their independently published issues.
+  const articles = featuredArticle && featuredIssue
+    ? [
+        { issue: featuredIssue, post: featuredArticle },
+        ...issues
+          .flatMap((issue) => issue.posts.map((post) => ({ issue, post })))
+          .filter(({ post }) => post.id !== featuredArticle.id)
+          .slice(0, 1),
+      ]
+    : [];
+
+  const archiveIssues = [...issues].reverse();
+  const nextIssues = latestIssue
+    ? [1, 2].map((offset) => {
+        const date = new Date(Date.UTC(latestIssue.year, latestIssue.month - 1 + offset, 1));
+        return {
+          label: new Intl.DateTimeFormat("en-US", {
+            month: "long",
+            year: "numeric",
+            timeZone: "UTC",
+          }).format(date),
+          volume: latestIssue.volume,
+          number: latestIssue.number + offset,
+        };
+      })
+    : [];
 
   return (
     <>
@@ -27,81 +55,88 @@ export default async function HomePage() {
           <p>{site.tagline}</p>
         </section>
 
-        {featuredIssue && featured ? (
-          <section className="py-9 sm:py-14" aria-labelledby="home-featured-title">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <span className="issue-badge">{publishedIssueCount} published {publishedIssueCount === 1 ? "issue" : "issues"}</span>
-              <span className="text-xs font-medium tracking-wide text-[var(--muted-foreground)] sm:text-sm">
-                Vol. {featuredIssue.volume} · No. {featuredIssue.number} · {featuredIssue.label}
-              </span>
+        {featuredIssue && featuredArticle ? (
+          <section className="current-issue" aria-labelledby="home-articles-heading">
+            <div>
+              <Link
+                href={issuePath(featuredIssue)}
+                aria-label={`View Volume ${featuredIssue.volume}, Number ${featuredIssue.number}, ${featuredIssue.label}`}
+                className="block text-[var(--foreground)] hover:!text-[var(--foreground)]"
+              >
+                <IssueCover issue={featuredIssue} />
+              </Link>
             </div>
 
-            {/* One featured article is shown on the homepage. The archive
-                lists every published issue separately. */}
-            <Link
-              href="/issues"
-              aria-label={`Browse ${publishedIssueCount} published issues, starting with ${featured.title}`}
-              className="group block overflow-hidden border border-[var(--border)] bg-white text-[var(--foreground)] shadow-[0_10px_30px_#141a2e14] transition-[box-shadow,transform] duration-200 hover:!text-[var(--foreground)] hover:shadow-[0_20px_50px_#141a2e22] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)]"
-            >
-              <article className="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="relative min-h-[240px] overflow-hidden bg-[var(--deep-navy)] sm:min-h-[340px] md:min-h-[410px]">
-                  {coverImage ? (
-                    <CoverMedia
-                      src={coverImage}
-                      alt={issueCoverDescription(featuredIssue)}
-                      priority
-                      sizes="(max-width: 767px) 100vw, 48vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-[var(--deep-navy)]" />
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b1630]/90 via-[#0b1630]/35 to-transparent px-5 pb-5 pt-20 text-white sm:px-7 sm:pb-7">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                      The Abyss · {featuredIssue.label}
+            <div>
+              <div className="current-issue-meta">
+                <span className="issue-badge">Featured issue</span>
+                <span>Vol. {featuredIssue.volume} | No. {featuredIssue.number} · {featuredIssue.label}</span>
+                <span className="font-semibold text-[var(--brand)]">
+                  {issues.length} published {issues.length === 1 ? "issue" : "issues"}
+                </span>
+              </div>
+
+              <h2 id="home-articles-heading" className="issue-contents-heading">In the journal</h2>
+              <div className="issue-contents-compact">
+                {articles.map(({ issue, post }) => (
+                  <article key={post.id} className="journal-entry">
+                    <Kicker>{post.articleType || "Research article"}</Kicker>
+                    <h3>
+                      <Link href={`/articles/${post.slug}`}>{post.title}</Link>
+                    </h3>
+                    <p className="journal-entry-excerpt">{post.excerpt}</p>
+                    <p className="journal-entry-meta">
+                      {post.articleCode} · Vol. {issue.volume}, No. {issue.number} · Published {formatDate(post.publishedAt)}
                     </p>
-                  </div>
-                </div>
+                  </article>
+                ))}
+              </div>
 
-                <div className="flex min-w-0 flex-col justify-center p-6 sm:p-10 lg:p-12">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">
-                    {featured.articleType || "Featured article"} · {featured.articleCode || "01"}
-                  </p>
-                  <h2
-                    id="home-featured-title"
-                    className="mt-4 font-serif text-[clamp(2rem,4vw,3.5rem)] leading-[1.1] tracking-[-0.015em] text-[var(--navy)]"
-                  >
-                    {featured.title}
-                  </h2>
-                  <p className="mt-5 max-w-prose font-serif text-lg leading-[1.6] text-[var(--muted-foreground)] sm:text-xl">
-                    {featured.excerpt}
-                  </p>
-                  <p className="mt-5 text-xs font-medium tracking-wide text-[var(--muted-foreground)] sm:text-sm">
-                    {formatDate(featured.publishedAt)}
-                  </p>
-                  <span className="mt-8 inline-flex min-h-11 items-center gap-3 self-start border-b-2 border-[var(--navy)] pb-1 text-sm font-semibold tracking-[0.04em] text-[var(--navy)]">
-                    Explore all {publishedIssueCount} published {publishedIssueCount === 1 ? "issue" : "issues"}
-                    <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-                  </span>
-                </div>
-              </article>
-            </Link>
-
-            <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3 text-sm font-semibold">
-              <Link href={`/articles/${featured.slug}`} className="inline-flex min-h-11 items-center">Read Article 01 →</Link>
-              <Link href="/issues" className="inline-flex min-h-11 items-center">Browse the archive →</Link>
-              <a href={`${issuePath(featuredIssue)}/download`} className="inline-flex min-h-11 items-center" download>
-                Download full issue PDF ↓
-              </a>
+              <div className="issue-home-actions">
+                <Link href={`/articles/${featuredArticle.slug}`}>Read Article 01 →</Link>
+                <Link href={issuePath(featuredIssue)}>View the featured issue →</Link>
+                <Link href="#archive">Explore all {issues.length} issues ↓</Link>
+              </div>
             </div>
           </section>
         ) : (
           <section className="py-16">
             <p>The next issue is on its way. Subscribe to hear when it is published.</p>
-            <Link href="/issues" className="mt-4 inline-flex min-h-11 items-center font-semibold">
-              Browse the archive →
-            </Link>
           </section>
         )}
+
+        <section id="archive" className="journal-archive" aria-labelledby="home-archive-heading">
+          <div className="archive-heading">
+            <h2 id="home-archive-heading">
+              {latestIssue ? `Volume ${latestIssue.volume} · ${archiveIssues[0]?.year}–${String(latestIssue.year + 1).slice(-2)}` : "The journal archive"}
+            </h2>
+            <Link href="/issues">Browse archive →</Link>
+          </div>
+
+          <div className="archive-grid">
+            {archiveIssues.map((issue) => (
+              <div key={issue.id} className="archive-item">
+                <Link
+                  href={issuePath(issue)}
+                  className="block text-[var(--foreground)] hover:!text-[var(--foreground)]"
+                  aria-label={`Read ${issue.label}, Volume ${issue.volume}, Number ${issue.number}`}
+                >
+                  <IssueCover issue={issue} variant="archive" current={issue.id === latestIssue?.id} />
+                  <h3>{issue.label}</h3>
+                </Link>
+                <p>Vol. {issue.volume} | No. {issue.number}</p>
+              </div>
+            ))}
+
+            {nextIssues.map((issue) => (
+              <div key={issue.label} className="archive-item archive-upcoming">
+                <div className="upcoming-cover" aria-label={`${issue.label} upcoming`}>Upcoming</div>
+                <h3>{issue.label}</h3>
+                <p>Vol. {issue.volume} | No. {issue.number}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </Container>
       <JournalNewsletter />
     </>
