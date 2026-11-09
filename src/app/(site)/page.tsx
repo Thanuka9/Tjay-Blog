@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { Container, Kicker } from "@/components/site/layout";
 import { IssueCover } from "@/components/site/IssueCover";
+import { InProgressIssueCard } from "@/components/site/InProgressIssueCard";
 import { JournalNewsletter } from "@/components/site/JournalNewsletter";
 import { issuePath } from "@/lib/issues";
 import { formatDate, site } from "@/lib/site";
-import { listPublishedIssues } from "@/lib/store";
+import { listIssueMeta, listPublishedIssues } from "@/lib/store";
 
 export const metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
-  const issues = await listPublishedIssues();
+  const [issues, issueMetadata] = await Promise.all([listPublishedIssues(), listIssueMeta()]);
   const latestIssue = issues[0];
 
   // The original Article 01 remains the lead story, even after new issues appear.
@@ -19,30 +20,25 @@ export default async function HomePage() {
   const featuredArticle = featuredIssue?.posts.find((post) => post.articleCode === "AB-0101")
     ?? featuredIssue?.posts[0];
 
-  // Match the reference's two-story editorial list, without falsely moving
-  // articles between their independently published issues.
-  const articles = featuredArticle && featuredIssue
-    ? [
-        { issue: featuredIssue, post: featuredArticle },
-        ...issues
-          .flatMap((issue) => issue.posts.map((post) => ({ issue, post })))
-          .filter(({ post }) => post.id !== featuredArticle.id)
-          .slice(0, 1),
-      ]
-    : [];
+  // Follow the supplied issue template: both stories are in Volume 1, Number 1.
+  const articles = featuredIssue?.posts.slice(0, 2) ?? [];
 
   const archiveIssues = [...issues].reverse();
   const nextIssues = latestIssue
-    ? [1, 2].map((offset) => {
+    ? [1, 2, 3].map((offset) => {
         const date = new Date(Date.UTC(latestIssue.year, latestIssue.month - 1 + offset, 1));
+        const id = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+        const draft = issueMetadata.find((issue) => issue.id === id && issue.status === "draft");
         return {
+          id,
           label: new Intl.DateTimeFormat("en-US", {
             month: "long",
             year: "numeric",
             timeZone: "UTC",
           }).format(date),
-          volume: latestIssue.volume,
-          number: latestIssue.number + offset,
+          volume: draft?.volume ?? latestIssue.volume,
+          number: draft?.number ?? latestIssue.number + offset,
+          draft,
         };
       })
     : [];
@@ -69,16 +65,16 @@ export default async function HomePage() {
 
             <div>
               <div className="current-issue-meta">
-                <span className="issue-badge">Featured issue</span>
+                <span className="issue-badge">Current issue</span>
                 <span>Vol. {featuredIssue.volume} | No. {featuredIssue.number} · {featuredIssue.label}</span>
                 <span className="font-semibold text-[var(--brand)]">
                   {issues.length} published {issues.length === 1 ? "issue" : "issues"}
                 </span>
               </div>
 
-              <h2 id="home-articles-heading" className="issue-contents-heading">In the journal</h2>
+              <h2 id="home-articles-heading" className="issue-contents-heading">In this issue</h2>
               <div className="issue-contents-compact">
-                {articles.map(({ issue, post }) => (
+                {articles.map((post) => (
                   <article key={post.id} className="journal-entry">
                     <Kicker>{post.articleType || "Research article"}</Kicker>
                     <h3>
@@ -86,16 +82,14 @@ export default async function HomePage() {
                     </h3>
                     <p className="journal-entry-excerpt">{post.excerpt}</p>
                     <p className="journal-entry-meta">
-                      {post.articleCode} · Vol. {issue.volume}, No. {issue.number} · Published {formatDate(post.publishedAt)}
+                      {post.articleCode} · Published {formatDate(post.publishedAt)}
                     </p>
                   </article>
                 ))}
               </div>
 
               <div className="issue-home-actions">
-                <Link href={`/articles/${featuredArticle.slug}`}>Read Article 01 →</Link>
-                <Link href={issuePath(featuredIssue)}>View the featured issue →</Link>
-                <Link href="#archive">Explore all {issues.length} issues ↓</Link>
+                <Link href={issuePath(featuredIssue)}>View the full issue ›</Link>
               </div>
             </div>
           </section>
@@ -128,8 +122,10 @@ export default async function HomePage() {
               </div>
             ))}
 
-            {nextIssues.map((issue) => (
-              <div key={issue.label} className="archive-item archive-upcoming">
+            {nextIssues.map((issue) => issue.draft ? (
+              <InProgressIssueCard key={issue.id} issue={issue.draft} />
+            ) : (
+              <div key={issue.id} className="archive-item archive-upcoming">
                 <div className="upcoming-cover" aria-label={`${issue.label} upcoming`}>Upcoming</div>
                 <h3>{issue.label}</h3>
                 <p>Vol. {issue.volume} | No. {issue.number}</p>

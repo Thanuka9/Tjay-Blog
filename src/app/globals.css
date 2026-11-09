@@ -703,3 +703,45 @@
     transition: none;
   }
 }
+
+/* In-progress journal cover follows the supplied Main.html reference.
+   Draft content is never linked or exposed publicly. */
+.in-progress-cover {
+  min-height: 228px;
+  position: relative;
+  padding: 18px 0 72px;
+  background: #fff;
+  color: var(--navy);
+  box-shadow: 0 8px 24px #141a2e1a;
+  overflow: hidden;
+}
+.in-progress-cover-name {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1;
+  text-align: center;
+}
+.in-progress-cover-name i { font-weight: 400; }
+.in-progress-cover-art {
+  display: flex;
+  height: 110px;
+  margin-top: 14px;
+}
+.in-progress-cover-band { width: 22%; background: var(--brand); }
+.in-progress-cover-image { flex: 1; min-width: 0; background: var(--deep-navy); }
+.in-progress-cover-label {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--foreground);
+  border-left: 6px solid var(--muted-foreground);
+  box-shadow: 0 2px 8px #141a2e1f;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}

@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { Container, Kicker } from "@/components/site/layout";
 import { IssueCover } from "@/components/site/IssueCover";
+import { InProgressIssueCard } from "@/components/site/InProgressIssueCard";
 import { issuePath } from "@/lib/issues";
-import { listPublishedIssues } from "@/lib/store";
+import { listIssueMeta, listPublishedIssues } from "@/lib/store";
 export const metadata = {
   title: "Archive",
   alternates: { canonical: "/issues" },
 };
 export default async function ArchivePage() {
-  const issues = await listPublishedIssues();
-  const years = [...new Set(issues.map((issue) => issue.year))];
+  const [issues, allIssueMeta] = await Promise.all([listPublishedIssues(), listIssueMeta()]);
+  const current = issues[0];
+  // Show only the next draft issue as in-progress, never as a published issue.
+  const nextDraft = current
+    ? allIssueMeta
+        .filter((issue) => issue.status === "draft" && issue.id > current.id)
+        .sort((a, b) => a.id.localeCompare(b.id))[0]
+    : undefined;
+  const years = [...new Set([...issues.map((issue) => issue.year), ...(nextDraft ? [nextDraft.year] : [])])];
   return (
     <Container className="py-14">
       <Kicker>The journal</Kicker>
@@ -37,6 +45,7 @@ export default async function ArchivePage() {
                   </div>
                 </div>
               ))}
+            {nextDraft?.year === year && <InProgressIssueCard issue={nextDraft} />}
           </div>
         </section>
       ))}
