@@ -340,13 +340,22 @@ export async function sendNewIssueEmail(subscriber: Subscriber, issue: JournalIs
 export async function notifySubscribersOfNewIssue(issue: JournalIssue) {
   const { enqueueNewIssue, processNewsletterQueue } = await import("@/lib/newsletter-queue");
   const job = await enqueueNewIssue(issue);
+  // Deliver the initial batch within the publication request. A best-effort
+  // after() callback alone can be lost before it starts on serverless runtimes.
+  // The durable queue and worker lease prevent duplicates if recovery overlaps.
+  let delivery = null;
   if (job.newlyQueued && job.configured) {
-    after(async () => {
-      try { await processNewsletterQueue(95); }
-      catch (error) { console.error("Issue newsletter worker failed:", error); }
-    });
+    try {
+      delivery = await processNewsletterQueue(10);
+      after(async () => {
+        try { await processNewsletterQueue(95); }
+        catch (error) { console.error("Issue newsletter continuation failed:", error); }
+      });
+    } catch (error) {
+      console.error("Immediate issue newsletter delivery failed:", error);
+    }
   }
-  return { queued: job.newlyQueued, configured: job.configured };
+  return { queued: job.newlyQueued, configured: job.configured, delivery };
 }
 
 /** First publication: save a durable row for every active subscriber, then
@@ -355,13 +364,19 @@ export async function notifySubscribersOfNewIssue(issue: JournalIssue) {
 export async function notifySubscribersOfNewArticle(post: PostMeta) {
   const { enqueueNewArticle, processNewsletterQueue } = await import("@/lib/newsletter-queue");
   const job = await enqueueNewArticle(post);
+  let delivery = null;
   if (job.newlyQueued && job.configured) {
-    after(async () => {
-      try { await processNewsletterQueue(95); }
-      catch (error) { console.error("Newsletter queue worker failed:", error); }
-    });
+    try {
+      delivery = await processNewsletterQueue(10);
+      after(async () => {
+        try { await processNewsletterQueue(95); }
+        catch (error) { console.error("Article newsletter continuation failed:", error); }
+      });
+    } catch (error) {
+      console.error("Immediate article newsletter delivery failed:", error);
+    }
   }
-  return { queued: job.newlyQueued, configured: job.configured };
+  return { queued: job.newlyQueued, configured: job.configured, delivery };
 }
 
 export async function sendEmailJsTest(kind: "welcome" | "published") {
