@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:blob": "npx tsx scripts/migrate-data-to-blob.ts",
-    "migrate:neon": "npx tsx scripts/migrate-blob-to-neon.ts"
+    "migrate:neon": "npx tsx scripts/migrate-blob-to-neon.ts",
+    "prebuild": "node scripts/prepare-creatine-cover.mjs",
+    "predev": "node scripts/prepare-creatine-cover.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
