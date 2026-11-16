@@ -59,15 +59,18 @@ export async function enqueueNewIssue(issue: JournalIssue) {
 /** Atomic claim prevents two dispatchers selecting the same delivery. */
 async function claimNext(): Promise<QueueRow | null> {
   const sql = db();
+  // Begin with UPDATE so Neon's app_sql RPC classifies this as a
+  // write-with-RETURNING, not a read-only WITH query. The SELECT retains
+  // the row lock and SKIP LOCKED for safe concurrent dispatch.
   const rows = await sql`
-    WITH picked AS (
+    UPDATE newsletter_delivery_queue AS q
+    SET status='sending', claimed_at=NOW(), attempts=q.attempts+1
+    WHERE q.id = (
       SELECT id FROM newsletter_delivery_queue
       WHERE status = 'pending' AND attempts < 3
       ORDER BY created_at ASC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED
     )
-    UPDATE newsletter_delivery_queue AS q
-    SET status='sending', claimed_at=NOW(), attempts=q.attempts+1
-    FROM picked WHERE q.id=picked.id RETURNING q.*
+    RETURNING q.*
   `;
   return (rows[0] as QueueRow | undefined) ?? null;
 }
