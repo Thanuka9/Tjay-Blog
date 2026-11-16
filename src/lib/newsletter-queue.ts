@@ -1,9 +1,10 @@
 import "server-only";
 
 import { db } from "@/lib/neon-db";
-import { getPost, listSubscribers } from "@/lib/store";
-import { mailConfigured, sendNewArticleEmail } from "@/lib/mail";
+import { getPost, getPublishedIssue, listSubscribers } from "@/lib/store";
+import { mailConfigured, sendNewArticleEmail, sendNewIssueEmail } from "@/lib/mail";
 import type { PostMeta, Subscriber } from "@/lib/types";
+import type { JournalIssue } from "@/lib/issues";
 
 type QueueStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
 type QueueRow = {
@@ -32,6 +33,23 @@ export async function enqueueNewArticle(post: PostMeta) {
     INSERT INTO newsletter_delivery_queue
       (id, post_id, subscriber_id, recipient, status, created_at)
     SELECT gen_random_uuid()::text, ${post.id}, id, email, 'pending', NOW()
+    FROM subscribers WHERE unsubscribed_at IS NULL
+    ON CONFLICT (post_id, subscriber_id) DO NOTHING RETURNING id
+  `;
+  return { newlyQueued: created.length, configured: mailConfigured() };
+}
+
+/** Issue fan-out uses the same durable, idempotent queue.
+ * The issue: prefix distinguishes issue notifications from article sends.
+ */
+export async function enqueueNewIssue(issue: JournalIssue) {
+  requireNeon();
+  if (issue.status !== "published") throw new Error("Cannot email unpublished issue.");
+  const sql = db();
+  const created = await sql`
+    INSERT INTO newsletter_delivery_queue
+      (id, post_id, subscriber_id, recipient, status, created_at)
+    SELECT gen_random_uuid()::text, ${`issue:${issue.id}`}, id, email, 'pending', NOW()
     FROM subscribers WHERE unsubscribed_at IS NULL
     ON CONFLICT (post_id, subscriber_id) DO NOTHING RETURNING id
   `;
@@ -93,6 +111,7 @@ export async function processNewsletterQueue(maxRecipients = 95) {
     (await listSubscribers()).map(s => [s.id, s])
   );
   const articleCache = new Map<string, Awaited<ReturnType<typeof getPost>>>();
+  const issueCache = new Map<string, JournalIssue | null>();
   try {
     for (let i=0; i<capped; i++) {
       const job = await claimNext();
@@ -110,15 +129,24 @@ export async function processNewsletterQueue(maxRecipients = 95) {
         skipped++;
         continue;
       }
-      if (!articleCache.has(job.post_id)) articleCache.set(job.post_id, await getPost(job.post_id));
-      const post = articleCache.get(job.post_id);
-      if (!post || post.status !== "published") {
-        await complete(job.id, "skipped", "Article is not published.");
+      const isIssue = job.post_id.startsWith("issue:");
+      let post: Awaited<ReturnType<typeof getPost>> = null;
+      let issue: JournalIssue | null = null;
+      if (isIssue) {
+        const id = job.post_id.slice("issue:".length);
+        if (!issueCache.has(id)) issueCache.set(id, await getPublishedIssue(id));
+        issue = issueCache.get(id) ?? null;
+      } else {
+        if (!articleCache.has(job.post_id)) articleCache.set(job.post_id, await getPost(job.post_id));
+        post = articleCache.get(job.post_id) ?? null;
+      }
+      if (isIssue ? !issue || issue.status !== "published" : !post || post.status !== "published") {
+        await complete(job.id, "skipped", isIssue ? "Issue is not published." : "Article is not published.");
         skipped++;
         continue;
       }
       try {
-        const result = await sendNewArticleEmail(sub, post);
+        const result = isIssue ? await sendNewIssueEmail(sub, issue!) : await sendNewArticleEmail(sub, post!);
         if (result.sent) {
           await complete(job.id, "sent");
           sent++;

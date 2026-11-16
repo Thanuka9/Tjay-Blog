@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 
 import { publicationUrl, site } from "@/lib/site";
+import { issuePath, type JournalIssue } from "@/lib/issues";
 import {
   listPublishedPosts,
   listSubscribers,
@@ -295,6 +296,57 @@ export async function sendNewArticleEmail(
       },
     },
   });
+}
+
+/** Issue announcements use the established EmailJS published template.
+ * Recipients link to the issue, not an article that has not been uploaded.
+ */
+export async function sendNewIssueEmail(subscriber: Subscriber, issue: JournalIssue) {
+  const destination = `${siteUrl()}${issuePath(issue)}`;
+  const subject = `New from ${site.name}: Volume ${issue.volume}, No. ${issue.number} — ${issue.label}`;
+  const intro = issue.editorLetter.trim() || "Explore the newest issue of the journal.";
+  const topics = [...issue.posts.map(p => p.title), ...(issue.upcomingArticles ?? []).map(p => p.title)];
+  const description = topics.length ? topics.join(" · ") : intro.slice(0, 240);
+  const html = wrapEmail(
+    `<p style="font-size:16px;line-height:1.7">The new issue of The Abyss is available.</p>
+     <h2 style="font-family:Georgia,serif">${escapeHtml(issue.label)} · Vol. ${issue.volume}, No. ${issue.number}</h2>
+     <p style="line-height:1.65">${escapeHtml(description)}</p>
+     <p style="line-height:1.65">${escapeHtml(intro)}</p>
+     <p><a href="${destination}" style="color:#2C797C">Explore this issue</a></p>`,
+    subscriber.unsubscribeToken,
+  );
+  const text = `The Abyss — ${issue.label}, Volume ${issue.volume}, Number ${issue.number}\n\n${description}\n\n${intro}\n\nExplore this issue: ${destination}\n\nUnsubscribe: ${unsubscribeUrl(subscriber.unsubscribeToken)}`;
+  return deliver({
+    to: subscriber.email,
+    subject,
+    html,
+    text,
+    kind: "published",
+    emailJs: {
+      template: "published",
+      params: {
+        site_url: siteUrl(),
+        article_title: `Volume ${issue.volume}, No. ${issue.number} — ${issue.label}`,
+        article_excerpt: description,
+        article_url: destination,
+        article_code: `Volume ${issue.volume}, No. ${issue.number}`,
+        published_date: issue.label,
+        unsubscribe_url: unsubscribeUrl(subscriber.unsubscribeToken),
+      },
+    },
+  });
+}
+
+export async function notifySubscribersOfNewIssue(issue: JournalIssue) {
+  const { enqueueNewIssue, processNewsletterQueue } = await import("@/lib/newsletter-queue");
+  const job = await enqueueNewIssue(issue);
+  if (job.newlyQueued && job.configured) {
+    after(async () => {
+      try { await processNewsletterQueue(95); }
+      catch (error) { console.error("Issue newsletter worker failed:", error); }
+    });
+  }
+  return { queued: job.newlyQueued, configured: job.configured };
 }
 
 /** First publication: save a durable row for every active subscriber, then

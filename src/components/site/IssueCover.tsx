@@ -25,6 +25,7 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
         <div className="cover-photo">
           {image ? <CoverMedia src={image} alt={issueCoverDescription(issue)} priority={variant !== "archive"} sizes={variant === "full" ? "(max-width: 1200px) 80vw, 900px" : "(max-width: 767px) 80vw, 360px"} /> : <div className="cover-abstract" />}
           {image === "/covers/insulin-crystals.webp" && <span className="cover-caption">On the cover · Crystals of insulin · {variant === "full" && "Antonio Romero / Science Photo Library · "}{issue.posts[0]?.articleCode}</span>}
+          {image === "/covers/creatine-crystals-1853.jpg" && <span className="cover-caption">On the cover · Creatine and creatinine, 1853 · {variant === "full" && "Otto Funke / Wellcome Collection · "}AB-0201</span>}
         </div>
       </div>
       <div className="cover-contents">

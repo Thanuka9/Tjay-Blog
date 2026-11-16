@@ -10,7 +10,7 @@ import {
   requireAdmin,
   setSessionCookie,
 } from "@/lib/auth";
-import { mailConfigured, notifySubscribersOfNewArticle, sendEmailJsTest, sendLatestDigest } from "@/lib/mail";
+import { mailConfigured, notifySubscribersOfNewArticle, notifySubscribersOfNewIssue, sendEmailJsTest, sendLatestDigest } from "@/lib/mail";
 import { processNewsletterQueue, retryFailedNewsletter } from "@/lib/newsletter-queue";
 import { after } from "next/server";
 import { slugify } from "@/lib/site";
@@ -18,6 +18,8 @@ import {
   deletePost,
   deleteTopic,
   getPost,
+  getPublishedIssue,
+  listIssueMeta,
   listTopics,
   saveHomeSettings,
   savePost,
@@ -384,11 +386,26 @@ export async function saveIssueAction(formData: FormData) {
     };
   try {
     const postIds = formData.getAll("postIds").map(String);
+    const existing = (await listIssueMeta()).find(issue => issue.id === parsed.data.id);
     await saveIssue(parsed.data, postIds);
+    let emailStatus: string | null = null;
+    if (parsed.data.status === "published" && existing?.status !== "published") {
+      const published = await getPublishedIssue(parsed.data.id);
+      if (published) {
+        try {
+          const queued = await notifySubscribersOfNewIssue(published);
+          emailStatus = queued.configured
+            ? `Issue is live. Queued ${queued.queued} subscriber notifications.`
+            : `Issue is live, but email delivery is not configured.`;
+        } catch (error) {
+          emailStatus = `Issue is live, but newsletter queueing failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+        }
+      }
+    }
     revalidatePath("/", "layout");
     revalidatePath("/admin/issues");
     revalidatePath("/admin/posts");
-    return { ok: true as const, id: parsed.data.id };
+    return { ok: true as const, id: parsed.data.id, emailStatus };
   } catch (error) {
     return {
       ok: false as const,
