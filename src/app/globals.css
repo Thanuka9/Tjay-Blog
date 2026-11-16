@@ -232,6 +232,18 @@
 .cover-art { display: flex; height: 140px; margin-top: 16px; }
 .cover-color { width: 20%; flex-shrink: 0; background: #1b2a55; }
 .cover-photo { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+/* The November 1853 plate is a physically cropped Fig. 1–2 image.
+   Letterbox it when a cover card has a squarer aspect ratio, rather than
+   object-cover cropping off the crystal circles and figure labels. */
+.cover-photo-plate { background: #fffedf; }
+.cover-photo-plate .cover-caption {
+  color: #17213b;
+  text-shadow: none;
+  background: rgba(255, 254, 223, 0.9);
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  padding: 2px 5px;
+}
 .cover-abstract { width: 100%; height: 100%; background: var(--deep-navy); }
 .cover-caption { position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 1; font-size: 5.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: white; text-shadow: 0 1px 3px #0009; }
 .cover-contents { display: flex; gap: 14px; margin-top: 16px; align-items: start; }
