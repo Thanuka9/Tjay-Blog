@@ -17,9 +17,9 @@ export default async function HomePage() {
   // The newest published issue is the homepage feature; earlier issues remain in the archive.
   const featuredIssue = latestIssue;
 
-  const archiveIssues = [...issues].reverse();
+  const archiveIssues = [...issues];
   const nextIssues = latestIssue
-    ? [1, 2, 3].map((offset) => {
+    ? [1, 2].map((offset) => {
         const date = new Date(Date.UTC(latestIssue.year, latestIssue.month - 1 + offset, 1));
         const id = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
         const draft = issueMetadata.find((issue) => issue.id === id && issue.status === "draft");
@@ -59,7 +59,7 @@ export default async function HomePage() {
 
             <div>
               <div className="current-issue-meta">
-                <span className="issue-badge">Latest issue</span>
+                <span className="issue-badge">Current issue</span>
                 <span>Vol. {featuredIssue.volume} | No. {featuredIssue.number} · {featuredIssue.label}</span>
                 <span className="font-semibold text-[var(--brand)]">
                   {issues.length} published {issues.length === 1 ? "issue" : "issues"}

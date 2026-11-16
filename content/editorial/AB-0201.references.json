@@ -1,0 +1,109 @@
+{
+  "abstract": [
+    {
+      "label": "Background",
+      "text": "Creatine is a compound that the body makes and stores, mostly in muscle, as a reserve of quick energy. Researchers have studied it for more than 30 years, mainly in people who train. It is now also being tested for memory, mood and brain disease. In 2026, a trial reported that people gained lean mass on creatine without exercise, and that result came from 13 people on creatine."
+    },
+    {
+      "label": "Purpose",
+      "text": "This article checks what the published research shows about creatine in people who do not exercise. It also shows how strong that evidence is."
+    },
+    {
+      "label": "What the evidence shows",
+      "text": "Shown. Creatine treats two rare inherited conditions in which the body cannot make it. Promising but small. One small trial found better test scores after a night without sleep, at one very large dose. Small trials also found a benefit in depression when creatine was added to treatment, but confidence in that result is very low. Tested, no clear benefit. The larger trials found no clear gain in muscle or memory in people who do not exercise. Two large trials also found that creatine did not slow Parkinson's or Huntington's disease."
+    },
+    {
+      "label": "What this means for you",
+      "text": "If you do not exercise, the evidence gives no reason to expect a noticeable change in your body or your thinking from creatine. Its clear benefit comes with weight training."
+    }
+  ],
+  "references": [
+    {
+      "id": 1,
+      "title": "EFSA Panel on Nutrition, Novel Foods and Food Allergens (NDA). Creatine and improvement in cognitive function: evaluation of a health claim pursuant to Article 13(5) of Regulation (EC) No 1924/2006 . EFSA J , 2024. (Regulator scientific opinion.)",
+      "url": "https://doi.org/10.2903/j.efsa.2024.9100",
+      "detail": ""
+    },
+    {
+      "id": 2,
+      "title": "Balestrino M, Adriano E. Beyond sports: efficacy and safety of creatine supplementation in pathological or paraphysiological conditions of brain and muscle . Med Res Rev , 2019.",
+      "url": "https://doi.org/10.1002/med.21590",
+      "detail": ""
+    },
+    {
+      "id": 3,
+      "title": "Pashayee-Khamene F et al. Creatine supplementation protocols with or without training interventions on body composition: a GRADE-assessed systematic review and dose-response meta-analysis . J Int Soc Sports Nutr , 2024.",
+      "url": "https://doi.org/10.1080/15502783.2024.2380058",
+      "detail": ""
+    },
+    {
+      "id": 4,
+      "title": "Sandkühler JF et al. The effects of creatine supplementation on cognitive performance—a randomised controlled study . BMC Med , 2023.",
+      "url": "https://doi.org/10.1186/s12916-023-03146-5",
+      "detail": ""
+    },
+    {
+      "id": 5,
+      "title": "Chun J et al. Effects of creatine supplementation with and without exercise and diet intervention on body composition, cognitive function, and markers of health in middle-aged and older adults . J Int Soc Sports Nutr , 2026.",
+      "url": "https://doi.org/10.1080/15502783.2026.2716273",
+      "detail": ""
+    },
+    {
+      "id": 6,
+      "title": "Lobo DM et al. Effects of long-term low-dose dietary creatine supplementation in older women . Exp Gerontol , 2015.",
+      "url": "https://doi.org/10.1016/j.exger.2015.07.012",
+      "detail": ""
+    },
+    {
+      "id": 7,
+      "title": "Sales LP et al. Creatine supplementation (3 g/d) and bone health in older women: a 2-year, randomized, placebo-controlled trial . J Gerontol A Biol Sci Med Sci , 2020.",
+      "url": "https://doi.org/10.1093/gerona/glz162",
+      "detail": ""
+    },
+    {
+      "id": 8,
+      "title": "Prokopidis K et al. Effects of creatine supplementation on memory in healthy individuals: a systematic review and meta-analysis of randomized controlled trials . Nutr Rev , 2023 (online 2022). With the letter by Eckert I and Pascher E and the authors' reply , Nutr Rev , 2023.",
+      "url": "https://doi.org/10.1093/nutrit/nuac064",
+      "detail": ""
+    },
+    {
+      "id": 9,
+      "title": "Gordji-Nejad A et al. Single dose creatine improves cognitive performance and induces changes in cerebral high energy phosphates during sleep deprivation . Sci Rep , 2024.",
+      "url": "https://doi.org/10.1038/s41598-024-54249-9",
+      "detail": ""
+    },
+    {
+      "id": 10,
+      "title": "Lyoo IK et al. A randomized, double-blind placebo-controlled trial of oral creatine monohydrate augmentation for enhanced response to a selective serotonin reuptake inhibitor in women with major depressive disorder . Am J Psychiatry , 2012.",
+      "url": "https://doi.org/10.1176/appi.ajp.2012.12010009",
+      "detail": ""
+    },
+    {
+      "id": 11,
+      "title": "Eckert I et al. Creatine supplementation for treating symptoms of depression: a systematic review and meta-analysis . Br J Nutr , 2025.",
+      "url": "https://doi.org/10.1017/S0007114525105588",
+      "detail": ""
+    },
+    {
+      "id": 12,
+      "title": "Writing Group for the NINDS Exploratory Trials in Parkinson Disease (NET-PD) Investigators. Effect of creatine monohydrate on clinical progression in patients with Parkinson disease: a randomized clinical trial . JAMA , 2015.",
+      "url": "https://doi.org/10.1001/jama.2015.120",
+      "detail": ""
+    },
+    {
+      "id": 13,
+      "title": "Hersch SM et al. The CREST-E study of creatine for Huntington disease: a randomized controlled trial . Neurology , 2017.",
+      "url": "https://doi.org/10.1212/WNL.0000000000004209",
+      "detail": ""
+    },
+    {
+      "id": 14,
+      "title": "Kreider RB et al. International Society of Sports Nutrition position stand: safety and efficacy of creatine supplementation in exercise, sport, and medicine . J Int Soc Sports Nutr , 2017.",
+      "url": "https://doi.org/10.1186/s12970-017-0173-z",
+      "detail": ""
+    }
+  ],
+  "source": "User-supplied The Abyss – Articles · AB-0201 Creatine.html",
+  "issue": "2026-11",
+  "publicationDate": "2026-11-15"
+}
