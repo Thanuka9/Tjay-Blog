@@ -3,6 +3,11 @@ import type { Issue } from "@/lib/types";
 const isFirstIssue = (issue: Issue) => issue.volume === 1 && issue.number === 1;
 
 export function issueCoverImage(issue: Issue) {
+  // Use the baked first-row image, not a CSS-only object-position crop of
+  // the 1600x2214 historical plate (which shows Fig. 3–4 in short viewports).
+  if (issue.coverImage === "/covers/creatine-crystals-1853.jpg") {
+    return "/covers/creatine-figures-1-2.jpg";
+  }
   return issue.coverImage || (isFirstIssue(issue) ? "/covers/insulin-crystals.webp" : null);
 }
 
