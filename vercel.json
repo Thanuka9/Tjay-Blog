@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/newsletter",
-      "schedule": "54 17 * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }
