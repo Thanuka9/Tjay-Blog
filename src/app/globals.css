@@ -290,11 +290,12 @@
 .archive-heading h2 { font-family: var(--font-serif); font-size: 52px; }
 .archive-heading a { font-size: 14px; }
 .archive-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; }
-.issue-cover-archive { padding: 18px 0 72px; min-height: 228px; box-shadow: 0 8px 24px #141a2e1a; }
+.issue-cover.issue-cover-archive { padding: 18px 0 42px; min-height: 0; box-shadow: 0 8px 24px #141a2e1a; }
 .issue-cover-archive :is(.cover-topline, .cover-subtitle, .cover-contents, .cover-footer, .cover-caption) { display: none; }
 .issue-cover-archive .cover-name { margin-top: 0; font-size: 34px; }
-.issue-cover-archive .cover-art { height: 110px; margin-top: 14px; }
-.archive-current-label { position: absolute; left: 0; bottom: 20px; font-size: 11px; padding: 8px 14px; }
+/* Keep a 20% stripe while giving the 80% photo pane its native ~4:3 shape. */
+.issue-cover-archive .cover-art { height: auto; aspect-ratio: 5 / 3; margin-top: 14px; }
+.archive-current-label { position: absolute; left: 0; bottom: 8px; font-size: 11px; padding: 8px 14px; }
 .archive-item h3 { text-align: center; font-size: 18px; font-weight: 600; margin-top: 20px; line-height: 1.6; }
 .archive-item > p { text-align: center; font-size: 16px; font-weight: 600; line-height: 1.6; }
 .archive-next-cover { position: relative; display: flex; align-items: flex-start; padding-top: 25px; background: white; color: var(--navy); }
@@ -821,7 +822,8 @@
    November photo must not make No. 2 taller than No. 1. Preserve the
    full micrograph inside that band (no cropping of the 50 µm scale bar). */
 .issue-cover.issue-cover-archive .cover-art.cover-art-creatine {
-  height: 110px;
+  height: auto;
+  aspect-ratio: 5 / 3;
 }
 .issue-cover-archive .cover-art-creatine .cover-photo-creatine {
   height: 100%;
@@ -842,3 +844,13 @@
     line-height: 1.45;
   }
 }
+
+/* Same exact card geometry for October and November on both archive
+   layouts. The November photo is contained in a 4:3-shaped photo pane,
+   not stretched or surrounded by oversized purple gutters. */
+.issue-cover.issue-cover-archive .cover-art .cover-photo { height: 100%; min-width: 0; }
+.issue-cover.issue-cover-archive .cover-art-creatine .cover-photo-creatine-archive-image {
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+.issue-cover.issue-cover-archive .cover-art-creatine .cover-color { width: 20%; }
