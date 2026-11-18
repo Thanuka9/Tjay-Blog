@@ -10,6 +10,7 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
 }) {
   const image = issueCoverImage(issue);
   const isCroppedPlate = image === "/covers/creatine-figures-1-2.jpg";
+  const isCreatinePhoto = image === "/covers/creatine-crystals-urine-2019.jpg";
   return (
     <div className={`issue-cover issue-cover-${variant}`}>
       <div className="cover-topline">
@@ -23,10 +24,11 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
       <p className="cover-subtitle">Below the headlines, into the evidence.</p>
       <div className="cover-art">
         <div className="cover-color" />
-        <div className={`cover-photo${isCroppedPlate ? " cover-photo-plate" : ""}`}>
-          {image ? <CoverMedia src={image} alt={issueCoverDescription(issue)} className={isCroppedPlate ? "object-contain" : undefined} priority={variant !== "archive"} sizes={variant === "full" ? "(max-width: 1200px) 80vw, 900px" : "(max-width: 767px) 80vw, 360px"} /> : <div className="cover-abstract" />}
+        <div className={`cover-photo${isCroppedPlate ? " cover-photo-plate" : ""}${isCreatinePhoto ? " cover-photo-creatine" : ""}`}>
+          {image ? <CoverMedia src={image} alt={isCreatinePhoto ? "Creatine crystals found in a patient's urine, seen under the microscope" : issueCoverDescription(issue)} className={isCroppedPlate || isCreatinePhoto ? "object-contain" : undefined} priority={variant !== "archive"} sizes={variant === "full" ? "(max-width: 1200px) 80vw, 900px" : "(max-width: 767px) 80vw, 360px"} /> : <div className="cover-abstract" />}
           {image === "/covers/insulin-crystals.webp" && <span className="cover-caption">On the cover · Crystals of insulin · {variant === "full" && "Antonio Romero / Science Photo Library · "}{issue.posts[0]?.articleCode}</span>}
           {image === "/covers/creatine-figures-1-2.jpg" && <span className="cover-caption">On the cover · Creatine and creatinine, 1853 · {variant === "full" && "Otto Funke / Wellcome Collection · "}AB-0201</span>}
+          {isCreatinePhoto && <span className="cover-caption">On the cover · {variant === "full" ? "Creatine crystals found in a patient's urine" : "Creatine crystals in urine"} · {variant === "full" ? "Adapted from Kidney International 97:1307–1308, LivrozET et al., © 2019" : "© 2019 International Society of Nephrology"} · AB-0201</span>}
         </div>
       </div>
       <div className="cover-contents">

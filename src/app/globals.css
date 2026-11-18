@@ -772,3 +772,41 @@
   letter-spacing: .1em;
   text-transform: uppercase;
 }
+
+
+/* Issue 02 (November 2026): the same supplied micrograph is used by Home,
+   Issue, full-size Cover and Archive through the shared IssueCover component.
+   Keep the complete image centered; do not crop its crystals or scale bar. */
+.cover-photo-creatine {
+  background: #54015f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-photo-creatine img {
+  object-fit: contain !important;
+  object-position: 50% 50% !important;
+}
+.cover-photo-creatine .cover-caption {
+  color: #fff;
+  background: rgba(14, 28, 59, 0.85);
+  text-shadow: none;
+  font-weight: 600;
+  line-height: 1.5;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  right: auto;
+  padding: 3px 5px;
+  pointer-events: none;
+}
+.issue-cover-full .cover-photo-creatine .cover-caption {
+  padding: 8px 12px;
+  max-width: calc(100% - 48px);
+}
+@media (max-width: 520px) {
+  .issue-cover-full .cover-photo-creatine .cover-caption {
+    max-width: calc(100% - 24px);
+    padding: 5px 7px;
+    line-height: 1.4;
+  }
+}
