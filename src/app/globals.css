@@ -774,39 +774,53 @@
 }
 
 
-/* Issue 02 (November 2026): the same supplied micrograph is used by Home,
-   Issue, full-size Cover and Archive through the shared IssueCover component.
-   Keep the complete image centered; do not crop its crystals or scale bar. */
-.cover-photo-creatine {
-  background: #54015f;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Issue 02 (November 2026): preserve the entire 1536×1147 microscope
+   photograph, including its bottom-right scale bar, across Home, Issue,
+   full-size Cover and Archive. Only this issue's cover changes. */
+.issue-cover .cover-art.cover-art-creatine {
+  height: auto;
+  align-items: stretch;
 }
-.cover-photo-creatine img {
-  object-fit: contain !important;
-  object-position: 50% 50% !important;
+.cover-art-creatine .cover-color {
+  background: #2b0e4c; /* deep purple editorial stripe */
 }
-.cover-photo-creatine .cover-caption {
+.cover-art-creatine .cover-photo-creatine {
+  display: block;
+  background: #2b0e4c;
+}
+.cover-art-creatine .cover-photo-creatine-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  object-position: center center;
+}
+.cover-art-creatine .cover-photo-creatine .cover-caption {
+  position: static;
+  display: block;
+  width: 100%;
+  max-width: none;
   color: #fff;
-  background: rgba(14, 28, 59, 0.85);
+  background: #2b0e4c;
   text-shadow: none;
+  padding: 7px 10px;
   font-weight: 600;
-  line-height: 1.5;
-  width: fit-content;
-  max-width: calc(100% - 16px);
-  right: auto;
-  padding: 3px 5px;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
   pointer-events: none;
 }
-.issue-cover-full .cover-photo-creatine .cover-caption {
-  padding: 8px 12px;
-  max-width: calc(100% - 48px);
+.issue-cover-full .cover-art-creatine .cover-photo-creatine .cover-caption {
+  padding: 12px 20px;
+  font-size: 11px;
+}
+.issue-cover-archive .cover-art-creatine .cover-photo-creatine .cover-caption {
+  display: none;
 }
 @media (max-width: 520px) {
-  .issue-cover-full .cover-photo-creatine .cover-caption {
-    max-width: calc(100% - 24px);
-    padding: 5px 7px;
-    line-height: 1.4;
+  .issue-cover-full .cover-art-creatine .cover-photo-creatine .cover-caption {
+    padding: 7px 9px;
+    font-size: 8px;
+    line-height: 1.45;
   }
 }
