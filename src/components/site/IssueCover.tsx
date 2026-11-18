@@ -25,7 +25,16 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
       <div className={`cover-art${isCreatinePhoto ? " cover-art-creatine" : ""}`}>
         <div className="cover-color" />
         <div className={`cover-photo${isCroppedPlate ? " cover-photo-plate" : ""}${isCreatinePhoto ? " cover-photo-creatine" : ""}`}>
-          {isCreatinePhoto ? (
+          {isCreatinePhoto && variant === "archive" ? (
+            <Image
+              src={image}
+              alt="Creatine crystals in urine, including the original 50 micrometre scale bar"
+              fill
+              sizes="(max-width: 560px) 280px, (max-width: 1023px) 200px, 260px"
+              className="cover-photo-creatine-archive-image"
+              style={{ objectFit: "contain", objectPosition: "center" }}
+            />
+          ) : isCreatinePhoto ? (
             <Image
               src={image}
               alt="Creatine crystals in urine, photographed through a microscope, including the 50 micrometre scale bar"
@@ -33,7 +42,7 @@ export function IssueCover({ issue, variant = "standard", current = false }: {
               height={1147}
               className="cover-photo-creatine-image"
               sizes={variant === "full" ? "(max-width: 1200px) 80vw, 900px" : "(max-width: 767px) 80vw, 360px"}
-              priority={variant !== "archive"}
+              priority
             />
           ) : image ? (
             <CoverMedia
