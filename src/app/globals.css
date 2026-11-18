@@ -235,7 +235,22 @@
 /* The November 1853 plate is a physically cropped Fig. 1–2 image.
    Letterbox it when a cover card has a squarer aspect ratio, rather than
    object-cover cropping off the crystal circles and figure labels. */
-.cover-photo-plate { background: #fffedf; }
+.cover-photo-plate {
+  background: #fffedf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The same shared cover renders on Home, Issue, full Cover and Archive.
+   Preserve the entire baked Fig. 1–2 image at every aspect ratio. */
+.cover-photo-plate > img,
+.cover-photo-plate > span > img {
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+.cover-photo-plate .cover-caption {
+  pointer-events: none;
+}
 .cover-photo-plate .cover-caption {
   color: #17213b;
   text-shadow: none;
