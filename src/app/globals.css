@@ -293,7 +293,7 @@
 .issue-cover.issue-cover-archive { padding: 18px 0 42px; min-height: 0; box-shadow: 0 8px 24px #141a2e1a; }
 .issue-cover-archive :is(.cover-topline, .cover-subtitle, .cover-contents, .cover-footer, .cover-caption) { display: none; }
 .issue-cover-archive .cover-name { margin-top: 0; font-size: 34px; }
-/* Keep a 20% stripe while giving the 80% photo pane its native ~4:3 shape. */
+/* Archive image bands share the same aspect ratio; both use an 18% color stripe. */
 .issue-cover-archive .cover-art { height: auto; aspect-ratio: 5 / 3; margin-top: 14px; }
 .archive-current-label { position: absolute; left: 0; bottom: 8px; font-size: 11px; padding: 8px 14px; }
 .archive-item h3 { text-align: center; font-size: 18px; font-weight: 600; margin-top: 20px; line-height: 1.6; }
@@ -853,4 +853,7 @@
   object-fit: contain !important;
   object-position: center center !important;
 }
-.issue-cover.issue-cover-archive .cover-art-creatine .cover-color { width: 20%; }
+/* A subtle 20% → 18% reduction on both published archive covers only.
+   Keep the full-size issue covers and the existing photograph fit unchanged. */
+.issue-cover.issue-cover-archive .cover-art .cover-color { width: 18%; }
+.issue-cover.issue-cover-archive .cover-art-creatine .cover-color { width: 18%; }
