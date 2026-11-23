@@ -15,11 +15,10 @@ export const site = {
 export const authorProfile = {
   /** The name printed on articles. Must match the article's author field. */
   byline: "TJ",
-  // TODO(human): fill in the four fields below.
-  fullName: "",
-  jobTitle: "",
-  affiliation: "",
-  profiles: [] as string[],
+  fullName: "Nimasha Thejani Ganegoda Gei",
+  jobTitle: "Researcher",
+  affiliation: "Northeastern University",
+  profiles: ["https://www.linkedin.com/in/nimasha-thejani"] as string[],
 };
 
 export const FEED_PATH = "/feed.xml";
