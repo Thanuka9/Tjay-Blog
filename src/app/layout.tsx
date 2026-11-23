@@ -4,7 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { AppToaster } from "@/components/AppToaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { site, publicationUrl } from "@/lib/site";
+import { site, publicationUrl, FEED_PATH } from "@/lib/site";
 import "./globals.css";
 import "./mobile.css";
 
@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     template: `%s | ${site.name}`,
   },
   description: site.description,
+  alternates: { types: { "application/rss+xml": FEED_PATH } },
   icons: {
     icon: "/brand/abyss-logo.png",
     shortcut: "/brand/abyss-logo.png",

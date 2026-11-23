@@ -5,10 +5,12 @@ import { IssueContents } from "@/components/site/IssueContents";
 import { InProgressIssueCard } from "@/components/site/InProgressIssueCard";
 import { JournalNewsletter } from "@/components/site/JournalNewsletter";
 import { issuePath } from "@/lib/issues";
-import { site } from "@/lib/site";
+import { FEED_PATH, site } from "@/lib/site";
 import { listIssueMeta, listPublishedIssues } from "@/lib/store";
 
-export const metadata = { alternates: { canonical: "/" } };
+export const metadata = {
+  alternates: { canonical: "/", types: { "application/rss+xml": FEED_PATH } },
+};
 
 export default async function HomePage() {
   const [issues, issueMetadata] = await Promise.all([listPublishedIssues(), listIssueMeta()]);

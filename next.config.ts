@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/download/**": pdfAssets,
     "/**/download": pdfAssets,
+    "/api/article-card/**": ["./public/fonts/pdf/*.ttf"],
   },
   images: {
     remotePatterns: [
