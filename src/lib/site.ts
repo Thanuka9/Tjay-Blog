@@ -7,6 +7,23 @@ export const site = {
   correctionsEmail: "corrections.theabyss@gmail.com",
 };
 
+/**
+ * Who writes the journal, as search engines should know them.
+ * Used in each article's structured data (schema.org Person).
+ * Empty fields are simply left out.
+ */
+export const authorProfile = {
+  /** The name printed on articles. Must match the article's author field. */
+  byline: "TJ",
+  // TODO(human): fill in the four fields below.
+  fullName: "",
+  jobTitle: "",
+  affiliation: "",
+  profiles: [] as string[],
+};
+
+export const FEED_PATH = "/feed.xml";
+
 export const nav = [
   { href: "/current-issue", label: "Current issue" },
   { href: "/issues", label: "Archive" },
@@ -16,6 +33,26 @@ export const nav = [
 
 export function publicationUrl() {
   return (process.env.SITE_URL || "https://theabyssos.com").replace(/\/$/, "");
+}
+
+/** schema.org author for an article byline: the journal, the named author, or a plain person. */
+export function authorJsonLd(byline: string) {
+  if (byline === site.name) {
+    return { "@type": "Organization", name: site.name, url: publicationUrl() };
+  }
+  if (byline !== authorProfile.byline) {
+    return { "@type": "Person", name: byline };
+  }
+  const { fullName, jobTitle, affiliation, profiles } = authorProfile;
+  return {
+    "@type": "Person",
+    name: fullName || byline,
+    ...(fullName && fullName !== byline ? { alternateName: byline } : {}),
+    url: `${publicationUrl()}/about`,
+    ...(jobTitle ? { jobTitle } : {}),
+    ...(affiliation ? { affiliation: { "@type": "Organization", name: affiliation } } : {}),
+    ...(profiles.length ? { sameAs: profiles } : {}),
+  };
 }
 
 export function slugify(value: string) {

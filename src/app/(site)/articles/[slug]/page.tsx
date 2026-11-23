@@ -12,7 +12,8 @@ import { ShareActions } from "@/components/site/ShareActions";
 import { SubscribeForm } from "@/components/site/SubscribeForm";
 import { CITATIONS_BY_SLUG } from "@/lib/citations";
 import { extractHeadings } from "@/lib/headings";
-import { publicationUrl, site } from "@/lib/site";
+import { ARTICLE_CARD_SIZE } from "@/lib/article-card";
+import { FEED_PATH, authorJsonLd, publicationUrl, site } from "@/lib/site";
 import { getPostBySlug, listPublishedIssues } from "@/lib/store";
 import { issuePath } from "@/lib/issues";
 
@@ -33,11 +34,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post || post.status !== "published" || !post.publishedAt) return {};
   const title = post.seoTitle || post.title;
   const description = post.seoDescription || post.excerpt;
+  // Each article has its own link-preview image, drawn from its title.
+  const card = { url: `/api/article-card/${post.slug}`, ...ARTICLE_CARD_SIZE, alt: post.title };
   return {
     title,
     description,
     authors: [{ name: post.author }],
-    alternates: { canonical: `/articles/${post.slug}` },
+    alternates: {
+      canonical: `/articles/${post.slug}`,
+      types: { "application/rss+xml": FEED_PATH },
+    },
     openGraph: {
       type: "article",
       siteName: site.name,
@@ -47,13 +53,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       publishedTime: post.publishedAt || undefined,
       modifiedTime: post.updatedAt,
       authors: [post.author],
-      images: ["/opengraph-image"],
+      images: [card],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/opengraph-image"],
+      images: [card],
     },
   };
 }
@@ -80,14 +86,13 @@ export default async function ArticlePage({ params }: Props) {
     identifier: post.articleCode,
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
-    author: {
-      "@type": post.author === site.name ? "Organization" : "Person",
-      name: post.author,
-    },
+    image: `${publicationUrl()}/api/article-card/${slug}`,
+    author: authorJsonLd(post.author),
     publisher: {
       "@type": "Organization",
       name: site.name,
       url: publicationUrl(),
+      logo: { "@type": "ImageObject", url: `${publicationUrl()}/brand/abyss-logo.png` },
     },
     mainEntityOfPage: `${publicationUrl()}/articles/${slug}`,
     isPartOf: issue
